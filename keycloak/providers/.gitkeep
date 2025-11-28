@@ -1,0 +1,7 @@
+# Place Keycloak provider JARs here
+# For the webhook plugin, download from:
+# https://github.com/vymalo/keycloak-webhook
+#
+# Example:
+# keycloak-webhook-x.x.x.jar
+

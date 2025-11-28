@@ -1,0 +1,138 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Keycloak Persistence
+  postgres:
+    image: postgres:15-alpine
+    container_name: innoclinic-postgres
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-keycloak_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - innoclinic-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis for Caching and Session Revocation
+  redis:
+    image: redis:alpine
+    container_name: innoclinic-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secret}
+    volumes:
+      - redis_data:/data
+    networks:
+      - innoclinic-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secret}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  # Keycloak Identity Provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: innoclinic-keycloak
+    command: start-dev
+    environment:
+      # Database Configuration
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-keycloak_secret}
+      
+      # Admin Credentials
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      
+      # HTTP Configuration (dev mode)
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: 8080
+      KC_HOSTNAME_STRICT: "false"
+      KC_PROXY: edge
+      
+      # Webhook Plugin Configuration (vymalo/keycloak-webhook)
+      WEBHOOK_HTTP_BASE_PATH: http://auth-service:8080/api/webhooks
+      WEBHOOK_EVENTS_TAKEN: REGISTER,DELETE_ACCOUNT
+      
+      # Health and Metrics
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    volumes:
+      - ./keycloak/providers:/opt/keycloak/providers:ro
+      - ./keycloak/themes:/opt/keycloak/themes:ro
+    ports:
+      - "8180:8080"
+    networks:
+      - innoclinic-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080;echo -e 'GET /health/ready HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3;if timeout 5 grep -q '200 OK' <&3; then exit 0; else exit 1; fi"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # Auth.Service - .NET Web API
+  auth-service:
+    build:
+      context: .
+      dockerfile: src/Services/Identity/Services.Identity.Api/Dockerfile
+    container_name: innoclinic-auth-service
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      
+      # Keycloak Configuration
+      AuthOptions__Authority: http://keycloak:8080/realms/AppRealm
+      AuthOptions__ClientId: auth-service-api
+      AuthOptions__ClientSecret: ${AUTH_SERVICE_CLIENT_SECRET:-auth-service-secret}
+      AuthOptions__AdminClientId: admin-cli
+      AuthOptions__AdminClientSecret: ${ADMIN_CLIENT_SECRET:-admin-secret}
+      AuthOptions__Realm: AppRealm
+      AuthOptions__KeycloakBaseUrl: http://keycloak:8080
+      
+      # Redis Configuration
+      RedisOptions__ConnectionString: redis:6379,password=${REDIS_PASSWORD:-redis_secret}
+      RedisOptions__InstanceName: AuthService_
+      RedisOptions__SessionRevocationTtlMinutes: 15
+      
+      # Database Configuration (for local user entities)
+      ConnectionStrings__DefaultConnection: Host=postgres;Database=authservice;Username=keycloak;Password=${POSTGRES_PASSWORD:-keycloak_secret}
+    ports:
+      - "5000:8080"
+    networks:
+      - innoclinic-network
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+networks:
+  innoclinic-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+
