@@ -8,7 +8,6 @@ using Services.Identity.Configurations;
 using Services.Identity.Constants;
 using Services.Identity.Data;
 using Services.Identity.Extensions.Infrastructure;
-using Services.Identity.Middleware;
 using Services.Shared.Configuration;
 
 namespace Services.Identity.Api;
@@ -20,13 +19,13 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
 
         #region Aspire Service Defaults
-        
+
         builder.AddServiceDefaults();
-        
+
         #endregion
 
         #region Aspire Resource Connections
-        
+
         // Add PostgreSQL using Aspire's connection handling
         builder.AddNpgsqlDbContext<AuthDbContext>("identitydb", configureDbContextOptions: options =>
         {
@@ -41,14 +40,14 @@ public class Program
 
         // Add Redis using Aspire's connection handling
         builder.AddRedisClient("redis");
-        
+
         #endregion
 
         #region Configuration Binding
-        
+
         var authOptions = builder.Configuration
             .GetOptions<AuthOptions>(AuthConstants.ConfigSections.AuthOptions);
-        
+
         var redisOptions = builder.Configuration
             .GetOptions<RedisOptions>(AuthConstants.ConfigSections.RedisOptions);
 
@@ -57,13 +56,13 @@ public class Program
             builder.Configuration.GetSection(AuthConstants.ConfigSections.AuthOptions));
         builder.Services.Configure<RedisOptions>(
             builder.Configuration.GetSection(AuthConstants.ConfigSections.RedisOptions));
-        
+
         #endregion
 
         #region Keycloak Authentication
-        
+
         var isDevelopment = builder.Environment.IsDevelopment();
-        
+
         // JWT Bearer for API authentication
         builder.Services.AddKeycloakWebApiAuthentication(builder.Configuration, options =>
         {
@@ -76,8 +75,8 @@ public class Program
             {
                 options.Cookie.Name = "InnoClinic.Auth";
                 options.Cookie.HttpOnly = true;
-                options.Cookie.SecurePolicy = isDevelopment 
-                    ? CookieSecurePolicy.SameAsRequest 
+                options.Cookie.SecurePolicy = isDevelopment
+                    ? CookieSecurePolicy.SameAsRequest
                     : CookieSecurePolicy.Always;
                 options.ExpireTimeSpan = TimeSpan.FromHours(8);
                 options.SlidingExpiration = true;
@@ -91,7 +90,7 @@ public class Program
                 var authority = configuration["AuthOptions:Authority"];
                 var clientId = configuration["AuthOptions:ClientId"];
                 var clientSecret = configuration["AuthOptions:ClientSecret"];
-                
+
                 options.Authority = authority;
                 options.ClientId = clientId;
                 options.ClientSecret = clientSecret;
@@ -99,27 +98,27 @@ public class Program
                 options.SaveTokens = true;
                 options.GetClaimsFromUserInfoEndpoint = true;
                 options.RequireHttpsMetadata = !isDevelopment;
-                
+
                 // Disable Pushed Authorization Request (PAR) - Keycloak may not support it properly
                 options.PushedAuthorizationBehavior = PushedAuthorizationBehavior.Disable;
-                
+
                 options.Scope.Clear();
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");
                 options.Scope.Add("email");
-                
+
                 options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 options.CallbackPath = "/api/auth/oidc-callback";
                 options.SignedOutCallbackPath = "/api/auth/signout-callback";
-                
+
                 options.TokenValidationParameters.NameClaimType = "preferred_username";
                 options.TokenValidationParameters.RoleClaimType = "roles";
             });
-        
+
         #endregion
 
         #region Core Services
-        
+
         // Add Auth services (session management, identity service)
         builder.Services.AddAuthServicesWithAspire(authOptions, redisOptions);
 
@@ -131,18 +130,18 @@ public class Program
             title: "InnoClinic Identity API",
             version: "v1",
             description: "Authentication and identity management service for InnoClinic platform");
-        
+
         #endregion
 
         var app = builder.Build();
 
         #region Database Migration
-        
+
         if (app.Environment.IsDevelopment())
         {
             await using var scope = app.Services.CreateAsyncScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-            
+
             try
             {
                 await dbContext.Database.MigrateAsync();
@@ -162,11 +161,11 @@ public class Program
                 }
             }
         }
-        
+
         #endregion
 
         #region Middleware Pipeline
-        
+
         // Map OpenAPI and Scalar UI (development only by default)
         app.MapDefaultOpenApi(developmentOnly: true);
 
@@ -178,16 +177,13 @@ public class Program
         app.UseAuthentication();
         app.UseSessionRevocation();
         app.UseAuthorization();
-        
+
         #endregion
 
         #region Endpoints
-        
+
         // Map Aspire default health endpoints (/health, /alive, /ready)
         app.MapDefaultEndpoints();
-
-        // Map controllers
-        app.MapControllers();
 
         // Short login route - redirects to Keycloak
         app.MapGet("/login", (string? returnUrl) =>
@@ -202,6 +198,7 @@ public class Program
         app.MapGet("/logout", async (HttpContext context, IConfiguration configuration, string? returnUrl) =>
         {
             await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
             var keycloakBaseUrl = configuration["AuthOptions:KeycloakBaseUrl"];
             var realm = configuration["AuthOptions:Realm"];
             var clientId = configuration["AuthOptions:ClientId"];
@@ -213,33 +210,36 @@ public class Program
             return Results.Redirect(keycloakLogoutUrl);
         });
 
-        // Root endpoint with available routes info
-        app.MapGet("/", () => Results.Ok(new
+        if (app.Environment.IsDevelopment())
         {
-            service = "InnoClinic Identity Service",
-            version = "1.0.0",
-            endpoints = new
+            // Root endpoint with available routes info
+            app.MapGet("/", () => Results.Ok(new
             {
-                login = "/login",
-                logout = "/logout",
-                authStatus = "/api/auth/status",
-                health = "/health",
-                openapi = "/openapi/v1.json",
-                docs = "/scalar/v1"
-            }
-        })).AllowAnonymous();
-        
+                service = "InnoClinic Identity Service",
+                version = "1.0.0",
+                endpoints = new
+                {
+                    login = "/login",
+                    logout = "/logout",
+                    authStatus = "/api/auth/status",
+                    health = "/health",
+                    openapi = "/openapi/v1.json",
+                    docs = "/scalar/v1"
+                }
+            })).AllowAnonymous();
+        }
+
         #endregion
 
         #region Run Application
-        
+
         app.Logger.LogInformation("Identity.Service starting...");
         app.Logger.LogInformation("Authority: {Authority}", app.Configuration["AuthOptions:Authority"]);
         app.Logger.LogInformation("ClientId: {ClientId}", app.Configuration["AuthOptions:ClientId"]);
         app.Logger.LogInformation("KeycloakBaseUrl: {KeycloakBaseUrl}", app.Configuration["AuthOptions:KeycloakBaseUrl"]);
-        
+
         await app.RunAsync();
-        
+
         #endregion
     }
 }
