@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/Aspire/">
+    <Project Path="InnoClinic.AppHost/InnoClinic.AppHost.csproj" Id="a1b2c3d4-e5f6-7890-abcd-ef1234567890" />
+    <Project Path="InnoClinic.ServiceDefaults/InnoClinic.ServiceDefaults.csproj" Id="b2c3d4e5-f6a7-8901-bcde-f12345678901" />
+  </Folder>
   <Folder Name="/Services/">
     <Project Path="Services/Services.Shared/Services.Shared.csproj" Id="06f829fc-2f23-40a5-a44d-ebe9830c8890" />
   </Folder>

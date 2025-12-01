@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Services.Identity.Authentication;
 using Services.Identity.Configurations;
 using Services.Identity.Data;
 using Services.Identity.Services;
@@ -96,6 +97,9 @@ public static class ServiceCollectionExtensions
         // Add HTTP client factory
         services.AddHttpClient();
 
+        // Register JWT Bearer events handler
+        services.AddScoped<KeycloakJwtBearerEvents>();
+
         // Add authentication
         services.AddJwtBearerAuthentication(authOptions);
 
@@ -107,6 +111,37 @@ public static class ServiceCollectionExtensions
 
         // Add local user management
         services.AddLocalUserManagement(connectionString);
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers Auth.Service dependencies when using .NET Aspire.
+    /// Database context and Redis are handled by Aspire's resource management.
+    /// </summary>
+    public static IServiceCollection AddAuthServicesWithAspire(
+        this IServiceCollection services,
+        AuthOptions authOptions,
+        RedisOptions redisOptions)
+    {
+        // Register options
+        services.AddSingleton(Options.Create(authOptions));
+        services.AddSingleton(Options.Create(redisOptions));
+
+        // Add HTTP client factory
+        services.AddHttpClient();
+
+        // Register JWT Bearer events handler
+        services.AddScoped<KeycloakJwtBearerEvents>();
+
+        // Add Identity Service (Keycloak Admin API)
+        services.AddIdentityService();
+
+        // Register session revocation service (uses IConnectionMultiplexer from Aspire)
+        services.AddScoped<ISessionRevocationService, SessionRevocationService>();
+
+        // Register local user service (uses DbContext from Aspire)
+        services.AddScoped<ILocalUserService, LocalUserService>();
 
         return services;
     }

@@ -4,6 +4,9 @@ using Services.Identity.Constants;
 
 namespace Services.Identity.Authentication;
 
+/// <summary>
+/// Custom JWT Bearer events for Keycloak authentication logging and debugging.
+/// </summary>
 public class KeycloakJwtBearerEvents : JwtBearerEvents
 {
     private readonly ILogger<KeycloakJwtBearerEvents> _logger;
@@ -25,9 +28,7 @@ public class KeycloakJwtBearerEvents : JwtBearerEvents
 
     public override Task TokenValidated(TokenValidatedContext context)
     {
-        // Adjust AuthConstants usage based on your actual namespace/class structure
         var userId = context.Principal?.FindFirst(AuthConstants.Keycloak.Claims.Subject)?.Value;
-
         _logger.LogDebug("Token validated for user {UserId}", userId);
 
         return base.TokenValidated(context);
@@ -41,5 +42,17 @@ public class KeycloakJwtBearerEvents : JwtBearerEvents
             context.ErrorDescription);
 
         return base.Challenge(context);
+    }
+
+    public override Task MessageReceived(MessageReceivedContext context)
+    {
+        _logger.LogTrace("JWT message received");
+        return base.MessageReceived(context);
+    }
+
+    public override Task Forbidden(ForbiddenContext context)
+    {
+        _logger.LogWarning("JWT forbidden - insufficient permissions");
+        return base.Forbidden(context);
     }
 }

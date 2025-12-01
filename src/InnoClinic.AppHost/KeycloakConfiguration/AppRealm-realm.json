@@ -1,0 +1,161 @@
+{
+  "realm": "AppRealm",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "clients": [
+    {
+      "clientId": "identity-service-api",
+      "name": "Identity Service API",
+      "description": "Backend API client for Identity Service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dev-client-secret",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "rootUrl": "",
+      "baseUrl": "",
+      "redirectUris": [
+        "http://localhost:*/*",
+        "https://localhost:*/*",
+        "http://127.0.0.1:*/*",
+        "https://127.0.0.1:*/*"
+      ],
+      "webOrigins": [
+        "http://localhost:*",
+        "https://localhost:*",
+        "http://127.0.0.1:*",
+        "https://127.0.0.1:*",
+        "+"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access"
+      ]
+    },
+    {
+      "clientId": "admin-cli",
+      "name": "Admin CLI",
+      "description": "Admin CLI client for Keycloak management",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dev-admin-secret",
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrator role",
+        "composite": false
+      },
+      {
+        "name": "user",
+        "description": "Standard user role",
+        "composite": false
+      },
+      {
+        "name": "doctor",
+        "description": "Doctor/medical professional role",
+        "composite": false
+      },
+      {
+        "name": "patient",
+        "description": "Patient role",
+        "composite": false
+      },
+      {
+        "name": "receptionist",
+        "description": "Receptionist/front desk role",
+        "composite": false
+      }
+    ]
+  },
+  "defaultDefaultClientScopes": [
+    "role_list",
+    "profile",
+    "email",
+    "roles",
+    "web-origins",
+    "acr"
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@innoclinic.local",
+      "firstName": "Admin",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["admin", "user"]
+    },
+    {
+      "username": "testdoctor",
+      "email": "doctor@innoclinic.local",
+      "firstName": "Test",
+      "lastName": "Doctor",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "doctor123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["doctor", "user"]
+    },
+    {
+      "username": "testpatient",
+      "email": "patient@innoclinic.local",
+      "firstName": "Test",
+      "lastName": "Patient",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "patient123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["patient", "user"]
+    }
+  ]
+}

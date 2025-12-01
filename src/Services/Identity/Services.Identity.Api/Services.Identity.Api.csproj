@@ -4,16 +4,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
-    <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="8.0.2" />
-    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\InnoClinic.ServiceDefaults\InnoClinic.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Services.Identity\Services.Identity.csproj" />
   </ItemGroup>
 

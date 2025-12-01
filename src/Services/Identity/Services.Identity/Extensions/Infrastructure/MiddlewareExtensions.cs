@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Builder;
+using Services.Identity.Middleware;
 
-namespace Services.Identity.Middleware;
+namespace Services.Identity.Extensions.Infrastructure;
 
 /// <summary>
-/// Extension methods for registering the session revocation middleware.
+/// Extension methods for registering middleware components.
 /// </summary>
-public static class SessionRevocationMiddlewareExtensions
+public static class MiddlewareExtensions
 {
     /// <summary>
     /// Adds the session revocation middleware to the pipeline.
@@ -16,4 +17,6 @@ public static class SessionRevocationMiddlewareExtensions
         return app.UseMiddleware<SessionRevocationMiddleware>();
     }
 }
+
+
 

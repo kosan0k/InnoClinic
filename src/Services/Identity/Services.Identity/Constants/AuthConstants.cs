@@ -58,6 +58,7 @@ public static class AuthConstants
         public const string WebhooksBase = "api/webhooks";
         public const string BackChannelLogout = "api/logout/backchannel";
         public const string UsersBase = "api/users";
+        public const string AuthBase = "api/auth";
         public const string Health = "health";
     }
     

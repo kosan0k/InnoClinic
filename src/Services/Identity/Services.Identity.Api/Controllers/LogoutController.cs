@@ -24,9 +24,6 @@ public class LogoutController : ControllerBase
     private readonly ILogger<LogoutController> _logger;
     private readonly IConfigurationManager<OpenIdConnectConfiguration> _configurationManager;
 
-    private static readonly string BackChannelLogoutEvent = 
-        "http://schemas.openid.net/event/backchannel-logout";
-
     public LogoutController(
         ISessionRevocationService sessionRevocationService,
         IOptions<AuthOptions> authOptions,
