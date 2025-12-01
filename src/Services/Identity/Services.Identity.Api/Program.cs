@@ -19,14 +19,13 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        // ====================================
-        // Aspire Service Defaults
-        // ====================================
+        #region Aspire Service Defaults
+        
         builder.AddServiceDefaults();
+        
+        #endregion
 
-        // ====================================
-        // Aspire Resource Connections
-        // ====================================
+        #region Aspire Resource Connections
         
         // Add PostgreSQL using Aspire's connection handling
         builder.AddNpgsqlDbContext<AuthDbContext>("identitydb", configureDbContextOptions: options =>
@@ -42,10 +41,11 @@ public class Program
 
         // Add Redis using Aspire's connection handling
         builder.AddRedisClient("redis");
+        
+        #endregion
 
-        // ====================================
-        // Configuration Binding
-        // ====================================
+        #region Configuration Binding
+        
         var authOptions = builder.Configuration
             .GetOptions<AuthOptions>(AuthConstants.ConfigSections.AuthOptions);
         
@@ -57,10 +57,10 @@ public class Program
             builder.Configuration.GetSection(AuthConstants.ConfigSections.AuthOptions));
         builder.Services.Configure<RedisOptions>(
             builder.Configuration.GetSection(AuthConstants.ConfigSections.RedisOptions));
+        
+        #endregion
 
-        // ====================================
-        // Keycloak Authentication (JWT Bearer + OpenID Connect)
-        // ====================================
+        #region Keycloak Authentication
         
         var isDevelopment = builder.Environment.IsDevelopment();
         
@@ -115,10 +115,10 @@ public class Program
                 options.TokenValidationParameters.NameClaimType = "preferred_username";
                 options.TokenValidationParameters.RoleClaimType = "roles";
             });
+        
+        #endregion
 
-        // ====================================
-        // Core Services
-        // ====================================
+        #region Core Services
         
         // Add Auth services (session management, identity service)
         builder.Services.AddAuthServicesWithAspire(authOptions, redisOptions);
@@ -128,15 +128,13 @@ public class Program
 
         // Add OpenAPI/Swagger
         builder.Services.AddOpenApi();
+        
+        #endregion
 
-        // ====================================
-        // Build Application
-        // ====================================
         var app = builder.Build();
 
-        // ====================================
-        // Database Migration (Development)
-        // ====================================
+        #region Database Migration
+        
         if (app.Environment.IsDevelopment())
         {
             await using var scope = app.Services.CreateAsyncScope();
@@ -150,7 +148,6 @@ public class Program
             catch (Exception ex)
             {
                 app.Logger.LogWarning(ex, "Database migration failed - database may not be ready yet");
-                // In dev, try to create the database if it doesn't exist
                 try
                 {
                     await dbContext.Database.EnsureCreatedAsync();
@@ -162,34 +159,28 @@ public class Program
                 }
             }
         }
-
-        // ====================================
-        // Middleware Pipeline
-        // ====================================
         
-        // Development-only middleware
+        #endregion
+
+        #region Middleware Pipeline
+        
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
         }
 
-        // HTTPS redirection (disable in dev if using HTTP)
         if (!app.Environment.IsDevelopment())
         {
             app.UseHttpsRedirection();
         }
 
-        // Authentication & Authorization
         app.UseAuthentication();
-        
-        // Session revocation check (after authentication, before authorization)
         app.UseSessionRevocation();
-        
         app.UseAuthorization();
+        
+        #endregion
 
-        // ====================================
-        // Endpoints
-        // ====================================
+        #region Endpoints
         
         // Map Aspire default health endpoints (/health, /alive, /ready)
         app.MapDefaultEndpoints();
@@ -197,10 +188,6 @@ public class Program
         // Map controllers
         app.MapControllers();
 
-        // ====================================
-        // Convenience Routes
-        // ====================================
-        
         // Short login route - redirects to Keycloak
         app.MapGet("/login", (string? returnUrl) =>
         {
@@ -239,15 +226,18 @@ public class Program
                 openapi = "/openapi/v1.json"
             }
         })).AllowAnonymous();
+        
+        #endregion
 
-        // ====================================
-        // Run Application
-        // ====================================
+        #region Run Application
+        
         app.Logger.LogInformation("Identity.Service starting...");
         app.Logger.LogInformation("Authority: {Authority}", app.Configuration["AuthOptions:Authority"]);
         app.Logger.LogInformation("ClientId: {ClientId}", app.Configuration["AuthOptions:ClientId"]);
         app.Logger.LogInformation("KeycloakBaseUrl: {KeycloakBaseUrl}", app.Configuration["AuthOptions:KeycloakBaseUrl"]);
         
         await app.RunAsync();
+        
+        #endregion
     }
 }

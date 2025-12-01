@@ -1,8 +1,6 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-// ============================================
-// Infrastructure Resources
-// ============================================
+#region Infrastructure Resources
 
 // PostgreSQL database server with persistent volume
 var postgres = builder.AddPostgres("postgres")
@@ -24,9 +22,9 @@ var keycloak = builder.AddKeycloakContainer("keycloak", port: 8180)
     .WithLifetime(ContainerLifetime.Persistent)
     .WithBindMount(Path.GetFullPath(keycloakImportPath), "/opt/keycloak/data/import");
 
-// ============================================
-// Application Services
-// ============================================
+#endregion
+
+#region Application Services
 
 var identityApi = builder.AddProject<Projects.Services_Identity_Api>("identity-api")
     .WithReference(identityDb)
@@ -41,8 +39,6 @@ var identityApi = builder.AddProject<Projects.Services_Identity_Api>("identity-a
     .WithEnvironment("Keycloak__realm", "AppRealm")
     .WithExternalHttpEndpoints();
 
-// ============================================
-// Build and Run
-// ============================================
+#endregion
 
 builder.Build().Run();
