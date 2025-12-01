@@ -126,8 +126,11 @@ public class Program
         // Add controllers
         builder.Services.AddControllers();
 
-        // Add OpenAPI/Swagger
-        builder.Services.AddOpenApi();
+        // Add OpenAPI with Scalar UI
+        builder.AddDefaultOpenApi(
+            title: "InnoClinic Identity API",
+            version: "v1",
+            description: "Authentication and identity management service for InnoClinic platform");
         
         #endregion
 
@@ -164,10 +167,8 @@ public class Program
 
         #region Middleware Pipeline
         
-        if (app.Environment.IsDevelopment())
-        {
-            app.MapOpenApi();
-        }
+        // Map OpenAPI and Scalar UI (development only by default)
+        app.MapDefaultOpenApi(developmentOnly: true);
 
         if (!app.Environment.IsDevelopment())
         {
@@ -223,7 +224,8 @@ public class Program
                 logout = "/logout",
                 authStatus = "/api/auth/status",
                 health = "/health",
-                openapi = "/openapi/v1.json"
+                openapi = "/openapi/v1.json",
+                docs = "/scalar/v1"
             }
         })).AllowAnonymous();
         

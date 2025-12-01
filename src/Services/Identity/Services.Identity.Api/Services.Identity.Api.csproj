@@ -7,10 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\..\InnoClinic.ServiceDefaults\InnoClinic.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Services.Identity\Services.Identity.csproj" />
   </ItemGroup>
