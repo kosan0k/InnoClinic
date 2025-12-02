@@ -3,6 +3,7 @@
   "enabled": true,
   "sslRequired": "none",
   "registrationAllowed": true,
+  "defaultRoles": [ "patient" ],
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
@@ -123,7 +124,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["admin", "user"]
+      "realmRoles": [ "admin", "user" ]
     },
     {
       "username": "testdoctor",
@@ -139,7 +140,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["doctor", "user"]
+      "realmRoles": [ "doctor", "user" ]
     },
     {
       "username": "testpatient",
@@ -155,7 +156,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["patient", "user"]
+      "realmRoles": [ "patient", "user" ]
     }
   ]
 }

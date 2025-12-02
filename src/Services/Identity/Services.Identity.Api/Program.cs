@@ -1,9 +1,5 @@
-using Keycloak.AuthServices.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Services.Identity.Features.Auth;
 using Services.Identity.Features.Auth.Registration;
 using Services.Identity.Features.Session.Middleware;
@@ -84,18 +80,11 @@ public class Program
         // Map Aspire default health endpoints (/health, /alive, /ready)
         app.MapDefaultEndpoints();
 
-        app.Map("/login", Behaviors.LoginAsync)
+        app.MapGet("/login", Behaviors.LoginAsync)
             .AllowAnonymous();
 
         app.MapGet("/logout", Behaviors.LogoutAsync)
             .RequireAuthorization();
-
-        if (app.Environment.IsDevelopment())
-        {
-            // Root endpoint with available routes info
-            app.MapGet("/", () => Results.Redirect("/scalar/v1", permanent: true))
-                .AllowAnonymous();
-        }
 
         #endregion
 
