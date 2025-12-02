@@ -30,10 +30,8 @@ dotnet run
 ```
 
 This will automatically:
-- Start **PostgreSQL** database
 - Start **Redis** cache
 - Start **Keycloak** identity provider
-- Start **Identity Service** API
 - Open the **Aspire Dashboard**
 
 ### Access Services
@@ -43,34 +41,6 @@ This will automatically:
 | Aspire Dashboard | https://localhost:17001 | - |
 | Identity API | See Aspire Dashboard | - |
 | Keycloak Admin | See Aspire Dashboard | admin / admin |
-
-## 📁 Project Structure
-
-```
-InnoClinic/
-├── keycloak/                          # Keycloak customizations
-│   ├── providers/                     # Custom Keycloak plugins
-│   ├── themes/                        # Custom login themes
-│   └── README.md                      # Keycloak documentation
-│
-├── src/
-│   ├── InnoClinic.AppHost/            # .NET Aspire orchestrator
-│   │   ├── KeycloakConfiguration/     # Realm import files
-│   │   └── Program.cs                 # Infrastructure setup
-│   │
-│   ├── InnoClinic.ServiceDefaults/    # Shared Aspire defaults
-│   │
-│   └── Services/
-│       ├── Identity/                  # Identity Service
-│       │   ├── Services.Identity/     # Core library
-│       │   ├── Services.Identity.Api/ # REST API
-│       │   └── README.md              # Service documentation
-│       │
-│       └── Services.Shared/           # Shared utilities
-│
-├── docker-compose.yaml                # Docker Compose (alternative)
-└── README.md                          # This file
-```
 
 ## 🔐 Authentication
 
@@ -118,9 +88,6 @@ dotnet test InnoClinic.slnx
 When running with Aspire, connection strings are automatically injected. For standalone deployment:
 
 ```bash
-# Database
-ConnectionStrings__identitydb=Host=localhost;Database=identity;Username=postgres;Password=secret
-
 # Redis
 ConnectionStrings__redis=localhost:6379
 
