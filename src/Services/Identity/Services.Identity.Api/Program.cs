@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Services.Identity.Configurations;
 using Services.Identity.Constants;
@@ -49,13 +50,7 @@ public class Program
             .GetOptions<AuthOptions>(AuthConstants.ConfigSections.AuthOptions);
 
         var redisOptions = builder.Configuration
-            .GetOptions<RedisOptions>(AuthConstants.ConfigSections.RedisOptions);
-
-        // Register options with IOptions<T> pattern
-        builder.Services.Configure<AuthOptions>(
-            builder.Configuration.GetSection(AuthConstants.ConfigSections.AuthOptions));
-        builder.Services.Configure<RedisOptions>(
-            builder.Configuration.GetSection(AuthConstants.ConfigSections.RedisOptions));
+            .GetOptions<RedisOptions>(AuthConstants.ConfigSections.RedisOptions);        
 
         #endregion
 
@@ -84,12 +79,15 @@ public class Program
             .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, _ => { });
 
         // Configure OpenID Connect using IConfigureOptions to pick up Aspire environment variables
-        builder.Services.AddOptions<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme)
+        builder.Services
+            .AddOptions<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme)
             .Configure<IConfiguration>((options, configuration) =>
             {
-                var authority = configuration["AuthOptions:Authority"];
-                var clientId = configuration["AuthOptions:ClientId"];
-                var clientSecret = configuration["AuthOptions:ClientSecret"];
+                var authOptions = configuration.GetOptions<AuthOptions>(AuthConstants.ConfigSections.AuthOptions);
+
+                var authority = authOptions.Authority;
+                var clientId = authOptions.ClientId; 
+                var clientSecret = authOptions.ClientSecret;
 
                 options.Authority = authority;
                 options.ClientId = clientId;
@@ -120,7 +118,7 @@ public class Program
         #region Core Services
 
         // Add Auth services (session management, identity service)
-        builder.Services.AddAuthServicesWithAspire(authOptions, redisOptions);
+        builder.Services.AddAuthServicesWithAspire();
 
         // Add controllers
         builder.Services.AddControllers();
@@ -195,14 +193,16 @@ public class Program
         }).AllowAnonymous();
 
         // Short logout route
-        app.MapGet("/logout", async (HttpContext context, IConfiguration configuration, string? returnUrl) =>
+        app.MapGet("/logout", async (HttpContext context, IOptions<AuthOptions> authOptions, string? returnUrl) =>
         {
             await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
-            var keycloakBaseUrl = configuration["AuthOptions:KeycloakBaseUrl"];
-            var realm = configuration["AuthOptions:Realm"];
-            var clientId = configuration["AuthOptions:ClientId"];
+            var keycloakBaseUrl = authOptions.Value.KeycloakBaseUrl;
+            var realm = authOptions.Value.Realm;
+            var clientId = authOptions.Value.ClientId;
+
             var keycloakLogoutUrl = $"{keycloakBaseUrl}/realms/{realm}/protocol/openid-connect/logout";
+
             if (!string.IsNullOrEmpty(returnUrl))
             {
                 keycloakLogoutUrl += $"?post_logout_redirect_uri={Uri.EscapeDataString(returnUrl)}&client_id={clientId}";
@@ -213,20 +213,8 @@ public class Program
         if (app.Environment.IsDevelopment())
         {
             // Root endpoint with available routes info
-            app.MapGet("/", () => Results.Ok(new
-            {
-                service = "InnoClinic Identity Service",
-                version = "1.0.0",
-                endpoints = new
-                {
-                    login = "/login",
-                    logout = "/logout",
-                    authStatus = "/api/auth/status",
-                    health = "/health",
-                    openapi = "/openapi/v1.json",
-                    docs = "/scalar/v1"
-                }
-            })).AllowAnonymous();
+            app.MapGet("/", () => Results.Redirect("/scalar/v1", permanent: true))
+                .AllowAnonymous();
         }
 
         #endregion

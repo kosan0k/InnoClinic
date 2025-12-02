@@ -59,75 +59,11 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers the local user database context and service.
-    /// </summary>
-    public static IServiceCollection AddLocalUserManagement(
-        this IServiceCollection services,
-        string connectionString)
-    {
-        services.AddDbContext<AuthDbContext>(options =>
-        {
-            options.UseNpgsql(connectionString, npgsqlOptions =>
-            {
-                npgsqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 3,
-                    maxRetryDelay: TimeSpan.FromSeconds(5),
-                    errorCodesToAdd: null);
-            });
-        });
-
-        services.AddScoped<ILocalUserService, LocalUserService>();
-
-        return services;
-    }
-
-    /// <summary>
-    /// Registers all Auth.Service dependencies.
-    /// </summary>
-    public static IServiceCollection AddAuthServices(
-        this IServiceCollection services,
-        AuthOptions authOptions,
-        RedisOptions redisOptions,
-        string connectionString)
-    {
-        // Register options
-        services.AddSingleton(Options.Create(authOptions));
-        services.AddSingleton(Options.Create(redisOptions));
-
-        // Add HTTP client factory
-        services.AddHttpClient();
-
-        // Register JWT Bearer events handler
-        services.AddScoped<KeycloakJwtBearerEvents>();
-
-        // Add authentication
-        services.AddJwtBearerAuthentication(authOptions);
-
-        // Add Redis session management
-        services.AddRedisSessionManagement(redisOptions);
-
-        // Add Identity Service (Keycloak Admin API)
-        services.AddIdentityService();
-
-        // Add local user management
-        services.AddLocalUserManagement(connectionString);
-
-        return services;
-    }
-
-    /// <summary>
     /// Registers Auth.Service dependencies when using .NET Aspire.
     /// Database context and Redis are handled by Aspire's resource management.
     /// </summary>
-    public static IServiceCollection AddAuthServicesWithAspire(
-        this IServiceCollection services,
-        AuthOptions authOptions,
-        RedisOptions redisOptions)
+    public static IServiceCollection AddAuthServicesWithAspire(this IServiceCollection services)
     {
-        // Register options
-        services.AddSingleton(Options.Create(authOptions));
-        services.AddSingleton(Options.Create(redisOptions));
-
         // Add HTTP client factory
         services.AddHttpClient();
 
