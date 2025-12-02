@@ -1,4 +1,4 @@
-﻿namespace Services.Identity.Configurations;
+﻿namespace Services.Identity.Shared.Configurations;
 
 /// <summary>
 /// Configuration options for Keycloak authentication and authorization.

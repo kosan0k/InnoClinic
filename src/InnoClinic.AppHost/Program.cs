@@ -2,14 +2,6 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 #region Infrastructure Resources
 
-// PostgreSQL database server with persistent volume
-var postgres = builder.AddPostgres("postgres")
-    .WithDataVolume("innoclinic-postgres-data")
-    .WithLifetime(ContainerLifetime.Persistent);
-
-// Identity database for the Identity service
-var identityDb = postgres.AddDatabase("identitydb", "identity");
-
 // Redis for caching and session management
 var redis = builder.AddRedis("redis")
     .WithDataVolume("innoclinic-redis-data")
@@ -27,8 +19,6 @@ var keycloak = builder.AddKeycloakContainer("keycloak", port: 8180)
 #region Application Services
 
 var identityApi = builder.AddProject<Projects.Services_Identity_Api>("identity-api")
-    .WithReference(identityDb)
-    .WaitFor(identityDb)
     .WithReference(redis)
     .WaitFor(redis)
     .WithReference(keycloak)

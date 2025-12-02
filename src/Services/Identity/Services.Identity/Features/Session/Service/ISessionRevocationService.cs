@@ -1,4 +1,4 @@
-namespace Services.Identity.Services;
+namespace Services.Identity.Features.Session.Service;
 
 /// <summary>
 /// Interface for session revocation operations using Redis.

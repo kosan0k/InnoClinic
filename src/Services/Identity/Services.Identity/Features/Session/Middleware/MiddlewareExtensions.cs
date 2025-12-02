@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Builder;
-using Services.Identity.Middleware;
 
-namespace Services.Identity.Extensions.Infrastructure;
+namespace Services.Identity.Features.Session.Middleware;
 
 /// <summary>
 /// Extension methods for registering middleware components.

@@ -1,10 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Services.Identity.Constants;
-using Services.Identity.Services;
+using Services.Identity.Features.Session.Service;
+using Services.Identity.Shared.Costants;
 
-namespace Services.Identity.Middleware;
+namespace Services.Identity.Features.Session.Middleware;
 
 /// <summary>
 /// Middleware that checks if the current request's session has been revoked.

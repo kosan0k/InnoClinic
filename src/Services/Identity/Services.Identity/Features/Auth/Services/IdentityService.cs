@@ -5,10 +5,10 @@ using System.Text.Json;
 using CSharpFunctionalExtensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Services.Identity.Configurations;
 using Services.Identity.Models;
+using Services.Identity.Shared.Configurations;
 
-namespace Services.Identity.Services;
+namespace Services.Identity.Features.Auth.Services;
 
 /// <summary>
 /// Implementation of identity management operations using Keycloak Admin API.

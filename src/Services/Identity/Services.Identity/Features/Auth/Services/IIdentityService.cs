@@ -1,7 +1,7 @@
 using CSharpFunctionalExtensions;
 using Services.Identity.Models;
 
-namespace Services.Identity.Services;
+namespace Services.Identity.Features.Auth.Services;
 
 /// <summary>
 /// Interface for identity management operations using Keycloak Admin API.

@@ -1,4 +1,4 @@
-namespace Services.Identity.Constants;
+namespace Services.Identity.Shared.Costants;
 
 /// <summary>
 /// Authentication and authorization constants to avoid magic strings.

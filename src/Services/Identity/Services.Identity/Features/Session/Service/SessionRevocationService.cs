@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Services.Identity.Configurations;
-using Services.Identity.Constants;
+using Services.Identity.Shared.Configurations;
+using Services.Identity.Shared.Costants;
 using StackExchange.Redis;
 
-namespace Services.Identity.Services;
+namespace Services.Identity.Features.Session.Service;
 
 /// <summary>
 /// Redis-based implementation of session revocation.
