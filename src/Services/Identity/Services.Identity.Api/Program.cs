@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Services.Identity.Features.Auth;
@@ -84,7 +86,10 @@ public class Program
             .AllowAnonymous();
 
         app.MapGet("/logout", Behaviors.LogoutAsync)
-            .RequireAuthorization();
+            .RequireAuthorization(new AuthorizeAttribute
+            {
+                AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme
+            });
 
         #endregion
 

@@ -74,25 +74,10 @@ public static class IServiceCollectionExtensions
                 options.TokenValidationParameters.RoleClaimType = "roles";
             });
 
-        return services;
-    }
-
-    private static IServiceCollection UseKeycloakAuthentication(this IServiceCollection services)
-    {
         // Add HTTP client factory
         services.AddHttpClient();
 
         // Add Identity Service (Keycloak Admin API)
-        services.AddIdentityService();
-
-        return services;
-    }
-
-    /// <summary>
-    /// Registers the Identity Service for Keycloak Admin API operations.
-    /// </summary>
-    private static IServiceCollection AddIdentityService(this IServiceCollection services)
-    {
         services.AddHttpClient<IIdentityService, IdentityService>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(30);
