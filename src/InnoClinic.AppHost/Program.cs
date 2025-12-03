@@ -20,6 +20,7 @@ var keycloakDbReference = ReferenceExpression.Create($"jdbc:postgresql://{postgr
 
 var keycloakImportPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "KeycloakConfiguration");
 var keycloak = builder.AddKeycloakContainer("keycloak", port: 8180)
+    .WithReference(keycloakDb)
     .WaitFor(postgres)
     .WithDataVolume("innoclinic-keycloak-data")
     .WithLifetime(ContainerLifetime.Persistent)
