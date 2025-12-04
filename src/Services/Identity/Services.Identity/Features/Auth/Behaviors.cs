@@ -34,5 +34,5 @@ public static class Behaviors
         }
 
         return Results.Redirect(keycloakLogoutUrl);
-    }
+    }    
 }

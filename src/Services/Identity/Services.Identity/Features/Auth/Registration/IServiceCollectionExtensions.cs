@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using Services.Identity.Features.Auth.Services;
 using Services.Identity.Shared.Configurations;
 using Services.Identity.Shared.Costants;
 using Services.Shared.Configuration;
@@ -73,15 +72,6 @@ public static class IServiceCollectionExtensions
                 options.TokenValidationParameters.NameClaimType = "preferred_username";
                 options.TokenValidationParameters.RoleClaimType = "roles";
             });
-
-        // Add HTTP client factory
-        services.AddHttpClient();
-
-        // Add Identity Service (Keycloak Admin API)
-        services.AddHttpClient<IIdentityService, IdentityService>(client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(30);
-        });
 
         return services;
     }

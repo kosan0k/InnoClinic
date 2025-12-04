@@ -6,6 +6,8 @@ using Services.Identity.Features.Auth;
 using Services.Identity.Features.Auth.Registration;
 using Services.Identity.Features.Session.Middleware;
 using Services.Identity.Features.Session.Registration;
+using Services.Identity.Features.Users;
+using Services.Identity.Features.Users.Registration;
 using Services.Identity.Shared.Configurations;
 using Services.Identity.Shared.Costants;
 using Services.Shared.Configuration;
@@ -50,6 +52,7 @@ public class Program
             .ConfigureOpenIdAuthentication(
                 configuration: builder.Configuration,
                 isDevelopment: builder.Environment.IsDevelopment())
+            .UseKeycloakIdentityService()
             .UseSessionRevocation()
             .AddAuthorization();
 
@@ -82,14 +85,17 @@ public class Program
         // Map Aspire default health endpoints (/health, /alive, /ready)
         app.MapDefaultEndpoints();
 
-        app.MapGet("/login", Behaviors.LoginAsync)
+        app.MapGet("/login", Features.Auth.Behaviors.LoginAsync)
             .AllowAnonymous();
 
-        app.MapGet("/logout", Behaviors.LogoutAsync)
-            .RequireAuthorization(new AuthorizeAttribute
+        app.MapGet("/logout", Features.Auth.Behaviors.LogoutAsync)
+            .RequireAuthorization(new AuthorizeAttribute 
             {
                 AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme
             });
+
+        app.MapPost("/users", Features.Users.Behaviors.RegisterUserAsync)
+            .AllowAnonymous();
 
         #endregion
 

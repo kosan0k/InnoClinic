@@ -210,7 +210,7 @@ public static class Extensions
                 .WithTitle($"{app.Environment.ApplicationName} API")
                 .WithTheme(ScalarTheme.DeepSpace)
                 .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient)
-                .WithPreferredScheme("Bearer");
+                .AddPreferredSecuritySchemes("Bearer");
         });
 
         return app;
