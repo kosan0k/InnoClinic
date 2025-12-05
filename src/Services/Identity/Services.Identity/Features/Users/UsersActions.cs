@@ -8,7 +8,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Services.Identity.Features.Users;
 
-public static class Behaviors
+public static class UsersActions
 {
     public static Task<Microsoft.AspNetCore.Http.IResult> RegisterUserAsync(
         [FromBody] RegisterUserRequest userDto,

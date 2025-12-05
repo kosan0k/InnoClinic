@@ -7,7 +7,7 @@ using Services.Identity.Shared.Configurations;
 
 namespace Services.Identity.Features.Auth;
 
-public static class Behaviors
+public static class AuthActions
 {
     public static Task<IResult> LoginAsync(string? returnUrl)
         => Task.FromResult(

@@ -85,17 +85,19 @@ public class Program
         // Map Aspire default health endpoints (/health, /alive, /ready)
         app.MapDefaultEndpoints();
 
-        app.MapGet("/login", Features.Auth.Behaviors.LoginAsync)
+        var authGroup = app.MapGroup("/auth");
+
+        authGroup.MapGet("/login", AuthActions.LoginAsync)
             .AllowAnonymous();
 
-        app.MapGet("/logout", Features.Auth.Behaviors.LogoutAsync)
+        authGroup.MapGet("/logout", AuthActions.LogoutAsync)
             .RequireAuthorization(new AuthorizeAttribute 
             {
                 AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme
             });
 
-        app.MapPost("/users", Features.Users.Behaviors.RegisterUserAsync)
-            .AllowAnonymous();
+        app.MapPost("/users", UsersActions.RegisterUserAsync)
+            .AllowAnonymous(); //TODO : Change to RequireAuthorization when only admins can create users
 
         #endregion
 

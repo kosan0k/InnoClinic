@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Services.Identity.Features.Users.Handlers;
 using Services.Identity.Features.Users.Services;
 
 namespace Services.Identity.Features.Users.Registration;
@@ -10,11 +11,17 @@ public static class IServiceCollectionExtensions
         // Add HTTP client factory
         services.AddHttpClient();
 
+        services.AddMemoryCache();
+        services.AddHttpClient<KeycloakTokenService>();
+        services.AddTransient<KeycloakAuthHandler>();
+
         // Add Identity Service (Keycloak Admin API)
-        services.AddHttpClient<IIdentityService, IdentityService>(client =>
-        {
-            client.Timeout = TimeSpan.FromSeconds(30);
-        });
+        services
+            .AddHttpClient<IIdentityService, KeycloakIdentityService>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(5);
+            })
+            .AddHttpMessageHandler<KeycloakAuthHandler>();
 
         return services;
     }
