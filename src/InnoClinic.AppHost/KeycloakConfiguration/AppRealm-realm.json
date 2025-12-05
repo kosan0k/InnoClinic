@@ -28,7 +28,7 @@
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": false,
+      "serviceAccountsEnabled": true,
       "protocol": "openid-connect",
       "fullScopeAllowed": true,
       "rootUrl": "",
@@ -110,6 +110,14 @@
     "acr"
   ],
   "users": [
+    {
+      "username": "service-account-identity-service-api",
+      "enabled": true,
+      "serviceAccountClientId": "identity-service-api",
+      "clientRoles": {
+        "realm-management": [ "manage-users", "view-users" ]
+      }
+    },
     {
       "username": "admin",
       "email": "admin@innoclinic.local",

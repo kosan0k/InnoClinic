@@ -183,8 +183,8 @@ public class IdentityService : IIdentityService
             var content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["grant_type"] = "client_credentials",
-                ["client_id"] = _authOptions.AdminClientId,
-                ["client_secret"] = _authOptions.AdminClientSecret
+                ["client_id"] = _authOptions.ClientId,
+                ["client_secret"] = _authOptions.ClientSecret
             });
 
             return await Result

@@ -21,16 +21,6 @@ public class AuthOptions
     public string ClientSecret { get; set; } = string.Empty;
     
     /// <summary>
-    /// The admin client ID for Keycloak Admin API access (e.g., admin-cli)
-    /// </summary>
-    public string AdminClientId { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// The admin client secret for Keycloak Admin API access
-    /// </summary>
-    public string AdminClientSecret { get; set; } = string.Empty;
-    
-    /// <summary>
     /// The Keycloak realm name (e.g., AppRealm)
     /// </summary>
     public string Realm { get; set; } = string.Empty;
