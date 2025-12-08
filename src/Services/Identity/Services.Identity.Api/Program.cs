@@ -54,7 +54,12 @@ public class Program
                 isDevelopment: builder.Environment.IsDevelopment())
             .UseKeycloakIdentityService()
             .UseSessionRevocation()
-            .AddAuthorization();
+            .AddAuthorization(options =>
+            {
+                // Define a policy named "AdminsOnly"
+                options.AddPolicy("AdminsOnly", policy =>
+                    policy.RequireRole("admin"));
+            });
 
         // Add OpenAPI with Scalar UI
         builder.AddDefaultOpenApi(
@@ -97,7 +102,10 @@ public class Program
             });
 
         app.MapPost("/users", UsersActions.RegisterUserAsync)
-            .AllowAnonymous(); //TODO : Change to RequireAuthorization when only admins can create users
+            .RequireAuthorization(new AuthorizeAttribute(policy: "AdminsOnly")
+            {
+                AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme
+            });
 
         #endregion
 
