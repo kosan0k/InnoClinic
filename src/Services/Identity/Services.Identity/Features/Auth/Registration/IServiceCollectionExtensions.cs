@@ -1,13 +1,17 @@
 ﻿using Keycloak.AuthServices.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.IdentityModel.Tokens;
 using Services.Identity.Shared.Configurations;
 using Services.Identity.Shared.Costants;
 using Services.Shared.Configuration;
+using System.Security.Claims;
+using System.Text.Json;
 
 namespace Services.Identity.Features.Auth.Registration;
 
@@ -18,14 +22,52 @@ public static class IServiceCollectionExtensions
         IConfiguration configuration,
         bool isDevelopment)
     {
-        // JWT Bearer for API authentication
-        services.AddKeycloakWebApiAuthentication(configuration, options =>
-        {
-            options.RequireHttpsMetadata = !isDevelopment;
-        });
+        var authOptions = configuration.GetOptions<AuthOptions>(AuthConstants.ConfigSections.AuthOptions);
 
         // Cookie authentication for session management
-        services.AddAuthentication()
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options => 
+            {
+                options.Authority = $"{authOptions.KeycloakBaseUrl}/realms/{authOptions.Realm}";
+
+                options.RequireHttpsMetadata = !isDevelopment;
+
+                // Keycloak access tokens often don't include the "aud" claim for the API itself by default.
+                // For development, we disable audience validation or set it to "account".
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateAudience = !isDevelopment, // Or set ValidAudience = "account"
+                    NameClaimType = "preferred_username",
+                    RoleClaimType = ClaimTypes.Role,
+                    ValidateIssuer = true
+                };
+
+                //CRITICAL: Map Keycloak "realm_access" roles to .NET Claims
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = context =>
+                    {
+                        if (context.Principal?.Identity is not ClaimsIdentity claimsIdentity) 
+                            return Task.CompletedTask;
+
+                        // Parse the "realm_access" JSON property from the token
+                        var realmAccessClaim = claimsIdentity.FindFirst("realm_access");
+                        if (realmAccessClaim != null)
+                        {
+                            using var doc = JsonDocument.Parse(realmAccessClaim.Value);
+                            if (doc.RootElement.TryGetProperty("roles", out var rolesElement))
+                            {
+                                foreach (var role in rolesElement.EnumerateArray())
+                                {
+                                    // Add the role as a standard .NET Claim
+                                    claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, role.GetString()!));
+                                }
+                            }
+                        }
+                        return Task.CompletedTask;
+                    }
+                };
+            })
             .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
             {
                 options.Cookie.Name = "InnoClinic.Auth";
@@ -41,10 +83,8 @@ public static class IServiceCollectionExtensions
         // Configure OpenID Connect using IConfigureOptions to pick up Aspire environment variables
         services
             .AddOptions<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme)
-            .Configure<IConfiguration>((options, configuration) =>
+            .Configure(options =>
             {
-                var authOptions = configuration.GetOptions<AuthOptions>(AuthConstants.ConfigSections.AuthOptions);
-
                 var authority = authOptions.Authority;
                 var clientId = authOptions.ClientId;
                 var clientSecret = authOptions.ClientSecret;
