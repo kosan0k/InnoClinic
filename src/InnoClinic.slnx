@@ -10,4 +10,8 @@
     <Project Path="Services/Identity/Services.Identity.Api/Services.Identity.Api.csproj" Id="2a1572b2-0ee5-4d55-ae1c-9bd4a08f8988" />
     <Project Path="Services/Identity/Services.Identity/Services.Identity.csproj" Id="33971b33-aa46-47c3-abef-eba3d9e8c1fd" />
   </Folder>
+  <Folder Name="/Services/Profiles/">
+    <Project Path="Services/Profiles/Services.Profiles.Api/Services.Profiles.Api.csproj" />
+    <Project Path="Services/Profiles/Services.Profiles/Services.Profiles.csproj" Id="ae49c42f-835f-43da-b250-e33340220ffd" />
+  </Folder>
 </Solution>

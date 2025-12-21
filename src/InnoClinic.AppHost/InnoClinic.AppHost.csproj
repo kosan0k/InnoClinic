@@ -20,6 +20,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Services\Identity\Services.Identity.Api\Services.Identity.Api.csproj" />
+		<ProjectReference Include="..\Services\Profiles\Services.Profiles.Api\Services.Profiles.Api.csproj" />
 	</ItemGroup>
 
 </Project>
