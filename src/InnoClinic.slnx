@@ -12,6 +12,8 @@
   </Folder>
   <Folder Name="/Services/Profiles/">
     <Project Path="Services/Profiles/Services.Profiles.Api/Services.Profiles.Api.csproj" />
-    <Project Path="Services/Profiles/Services.Profiles/Services.Profiles.csproj" Id="ae49c42f-835f-43da-b250-e33340220ffd" />
+    <Project Path="Services/Profiles/Services.Profiles.Domain/Services.Profiles.Domain.csproj" Id="ae49c42f-835f-43da-b250-e33340220ffd" />
+    <Project Path="Services/Profiles/Services.Profiles.Infrastructure/Services.Profiles.Infrastructure.csproj" Id="e0b60898-7012-49e0-b23f-a7e8732cce8d" />
+    <Project Path="Services/Profiles/Services.Profiles.Application/Services.Profiles.Application.csproj" Id="b92a5d82-8522-4e02-956b-4dc946b8724f" />
   </Folder>
 </Solution>

@@ -14,10 +14,4 @@
     <ProjectReference Include="..\..\..\InnoClinic.ServiceDefaults\InnoClinic.ServiceDefaults.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Infrastructure\Services\" />
-    <Folder Include="Infrastructure\Persistence\EntityConfigurations\" />
-    <Folder Include="Infrastructure\Persistence\Migrations\" />
-  </ItemGroup>
-
 </Project>

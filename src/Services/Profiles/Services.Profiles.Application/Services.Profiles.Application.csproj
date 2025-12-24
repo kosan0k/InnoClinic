@@ -7,15 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MediatR" Version="14.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Common\Interfaces\" />
     <Folder Include="Features\Doctors\Commands\ChangeStatus\" />
     <Folder Include="Features\Doctors\Queries\GetDoctorsList\" />
     <Folder Include="Features\Doctors\Queries\GetSpecializations\" />
     <Folder Include="Features\Patients\" />
+    <Folder Include="Common\" />
   </ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="MediatR" Version="14.0.0" />
+	</ItemGroup>
 
 </Project>

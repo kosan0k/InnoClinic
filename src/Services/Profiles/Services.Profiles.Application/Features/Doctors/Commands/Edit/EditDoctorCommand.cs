@@ -1,7 +1,7 @@
 ﻿using MediatR;
-using Services.Profiles.Domain.Enums;
+using Services.Profiles.Core.Enums;
 
-namespace Services.Profiles.Features.Doctors.Commands.Edit;
+namespace Services.Profiles.Application.Features.Doctors.Commands.Edit;
 
 public record EditDoctorCommand : IRequest
 {

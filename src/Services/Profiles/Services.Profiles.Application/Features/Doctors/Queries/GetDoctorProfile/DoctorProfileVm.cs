@@ -1,6 +1,6 @@
-﻿using Services.Profiles.Domain.Enums;
+﻿using Services.Profiles.Core.Enums;
 
-namespace Services.Profiles.Features.Doctors.Queries.GetDoctorProfile;
+namespace Services.Profiles.Application.Features.Doctors.Queries.GetDoctorProfile;
 
 public record DoctorProfileVm
 {

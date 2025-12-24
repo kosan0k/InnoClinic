@@ -1,6 +1,6 @@
 ﻿using MediatR;
 
-namespace Services.Profiles.Features.Doctors.Commands.Create;
+namespace Services.Profiles.Application.Features.Doctors.Commands.Create;
 
 public class CreateDoctorCommand : IRequest<Guid>
 {
