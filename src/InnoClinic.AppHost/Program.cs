@@ -52,6 +52,4 @@ var identityApi = builder.AddProject<Projects.Services_Identity_Api>("identity-a
 
 builder.AddProject<Projects.Services_Profiles_Api>("services-profiles-api");
 
-#endregion
-
 builder.Build().Run();
