@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Features\Doctors\Commands\ChangeStatus\" />
+    <Folder Include="Features\Doctors\Queries\GetDoctorsList\" />
+    <Folder Include="Features\Doctors\Queries\GetSpecializations\" />
+    <Folder Include="Features\Patients\" />
+    <Folder Include="Common\" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="MediatR" Version="14.0.0" />
+	</ItemGroup>
+
+</Project>
