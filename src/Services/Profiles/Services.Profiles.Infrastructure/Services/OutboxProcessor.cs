@@ -12,8 +12,13 @@ namespace Services.Profiles.Infrastructure.Services;
 public sealed class OutboxProcessor : BackgroundService
 {
     private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly OutboxNotifier _notifier;
     private readonly ILogger<OutboxProcessor> _logger;
-    private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(5);
+    
+    // Fallback polling interval - used when no notifications are received
+    // This ensures reliability even if notifications are missed
+    private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(10);
+    
     private const int BatchSize = 20;
     private const int MaxRetryCount = 3;
 
@@ -26,31 +31,67 @@ public sealed class OutboxProcessor : BackgroundService
 
     public OutboxProcessor(
         IServiceScopeFactory serviceScopeFactory,
+        OutboxNotifier notifier,
         ILogger<OutboxProcessor> logger)
     {
         _serviceScopeFactory = serviceScopeFactory;
+        _notifier = notifier;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Outbox processor started");
+        _logger.LogInformation("Outbox processor started (hybrid mode: notification + {PollingInterval}s fallback polling)", 
+            _pollingInterval.TotalSeconds);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                // Wait for either:
+                // 1. A notification that new messages are available (immediate processing)
+                // 2. The polling interval timeout (fallback for reliability)
+                await WaitForWorkAsync(stoppingToken);
+                
                 await ProcessOutboxMessagesAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                // Graceful shutdown
+                break;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing outbox messages");
+                
+                // Brief delay before retry to prevent tight error loops
+                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
             }
-
-            await Task.Delay(_pollingInterval, stoppingToken);
         }
 
         _logger.LogInformation("Outbox processor stopped");
+    }
+
+    /// <summary>
+    /// Waits for either a notification or the polling timeout, whichever comes first.
+    /// This enables immediate processing on notification while maintaining reliability via polling.
+    /// </summary>
+    private async Task WaitForWorkAsync(CancellationToken stoppingToken)
+    {
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        timeoutCts.CancelAfter(_pollingInterval);
+
+        try
+        {
+            // Wait for notification (will throw OperationCanceledException on timeout)
+            await _notifier.Reader.ReadAsync(timeoutCts.Token);
+            _logger.LogDebug("Outbox processing triggered by notification");
+        }
+        catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
+        {
+            // Timeout reached, not a shutdown - proceed with polling-based processing
+            _logger.LogDebug("Outbox processing triggered by polling interval");
+        }
     }
 
     private async Task ProcessOutboxMessagesAsync(CancellationToken cancellationToken)
