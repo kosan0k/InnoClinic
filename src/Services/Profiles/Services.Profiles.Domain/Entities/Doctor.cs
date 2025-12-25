@@ -6,19 +6,69 @@ public record Doctor
 {
     public Guid Id { get; init; }
 
-    public string FirstName { get; init; } = string.Empty;
+    public required string FirstName { get; init; }
 
-    public string LastName { get; init; } = string.Empty;
+    public required string LastName { get; init; }
 
     public string? MiddleName { get; init; }
 
     public DateTime DateOfBirth { get; init; }
 
-    public string Email { get; init; } = string.Empty;
+    public required string Email { get; init; }
 
     public string? PhotoUrl { get; init; }
 
     public int CareerStartYear { get; init; }
 
     public DoctorStatus Status { get; init; } = DoctorStatus.AtWork;
+
+    public static Doctor Create(
+        string firstName,
+        string lastName,
+        string? middleName,
+        DateTime dateOfBirth,
+        string email,
+        string? photoUrl,
+        int careerStartYear,
+        DoctorStatus status = DoctorStatus.AtWork)
+    {
+        return new Doctor
+        {
+            Id = Guid.NewGuid(),
+            FirstName = firstName,
+            LastName = lastName,
+            MiddleName = middleName,
+            DateOfBirth = dateOfBirth,
+            Email = email,
+            PhotoUrl = photoUrl,
+            CareerStartYear = careerStartYear,
+            Status = status
+        };
+    }
+
+    public Doctor WithStatus(DoctorStatus newStatus)
+    {
+        return this with { Status = newStatus };
+    }
+
+    public Doctor Update(
+        string firstName,
+        string lastName,
+        string? middleName,
+        DateTime dateOfBirth,
+        string? photoUrl,
+        int careerStartYear,
+        DoctorStatus status)
+    {
+        return this with
+        {
+            FirstName = firstName,
+            LastName = lastName,
+            MiddleName = middleName,
+            DateOfBirth = dateOfBirth,
+            PhotoUrl = photoUrl,
+            CareerStartYear = careerStartYear,
+            Status = status
+        };
+    }
 }

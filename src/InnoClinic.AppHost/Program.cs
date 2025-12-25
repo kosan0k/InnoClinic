@@ -32,6 +32,10 @@ var keycloak = builder.AddKeycloakContainer("keycloak", port: 8180)
         name: "KC_DB_URL", 
         value: keycloakDbReference);
 
+// Profiles Service databases (separate read/write for CQRS)
+var profilesWriteDb = postgres.AddDatabase("profiles-write-db");
+var profilesReadDb = postgres.AddDatabase("profiles-read-db");
+
 #endregion
 
 #region Application Services
@@ -48,8 +52,12 @@ var identityApi = builder.AddProject<Projects.Services_Identity_Api>("identity-a
     .WithEnvironment("Keycloak__realm", keycloakRealm)
     .WithExternalHttpEndpoints();
 
-#endregion
+var profilesApi = builder.AddProject<Projects.Services_Profiles_Api>("services-profiles-api")
+    .WithReference(profilesWriteDb)
+    .WithReference(profilesReadDb)
+    .WaitFor(profilesWriteDb)
+    .WaitFor(profilesReadDb);
 
-builder.AddProject<Projects.Services_Profiles_Api>("services-profiles-api");
+#endregion
 
 builder.Build().Run();
