@@ -35,13 +35,7 @@ public static class DependencyInjection
             .AddSingleton<OutboxInsertInterceptor>()
             .AddDbContext<WriteDbContext>((provider, options) =>
                 options
-                    .UseNpgsql(writeConnectionString, npgsqlOptions =>
-                    {
-                        npgsqlOptions.EnableRetryOnFailure(
-                            maxRetryCount: 3,
-                            maxRetryDelay: TimeSpan.FromSeconds(5),
-                            errorCodesToAdd: null);
-                    })
+                    .UseNpgsql(writeConnectionString)
                     .AddInterceptors(provider.GetRequiredService<OutboxInsertInterceptor>()));
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<WriteDbContext>());
@@ -59,13 +53,7 @@ public static class DependencyInjection
         services
             .AddDbContext<ReadDbContext>(options =>
                 options
-                    .UseNpgsql(readConnectionString, npgsqlOptions =>
-                    {
-                        npgsqlOptions.EnableRetryOnFailure(
-                            maxRetryCount: 3,
-                            maxRetryDelay: TimeSpan.FromSeconds(5),
-                            errorCodesToAdd: null);
-                    })
+                    .UseNpgsql(readConnectionString)
                     .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking))
             .AddScoped<IDoctorProjectionWriter, DoctorProjectionWriter>();
 

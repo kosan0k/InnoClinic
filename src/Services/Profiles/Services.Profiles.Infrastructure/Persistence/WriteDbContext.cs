@@ -40,6 +40,7 @@ public sealed class WriteDbContext : DbContext, IUnitOfWork
 
         await _currentTransaction.CommitAsync(cancellationToken);
         await _currentTransaction.DisposeAsync();
+
         _currentTransaction = null;
     }
 

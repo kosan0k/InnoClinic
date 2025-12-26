@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Services.Profiles.Domain.Entities;
 using Services.Profiles.Infrastructure.Persistence;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace Services.Profiles.Infrastructure.Services;
@@ -15,6 +16,7 @@ public sealed class OutboxProcessor : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly OutboxNotifier _notifier;
     private readonly ILogger<OutboxProcessor> _logger;
+    private static readonly ConcurrentDictionary<string, Type> _typeCache = new();
 
     private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(5);
     private const int BatchSize = 20;
@@ -92,14 +94,8 @@ public sealed class OutboxProcessor : BackgroundService
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<WriteDbContext>();
                 var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
-
-                // 1. Create Execution Strategy (for resilient retries)
-                var strategy = dbContext.Database.CreateExecutionStrategy();
-
-                // 2. Execute the named method inside the strategy
-                //    This removes the "huge lambda" and makes the flow clear.
-                return await strategy.ExecuteAsync(
-                    operation: () => ProcessTransactionBatchAsync(dbContext, publisher, ct));
+                
+                return await ProcessTransactionBatchAsync(dbContext, publisher, ct);
             },
             errorHandler: ex => new Exception("Error processing outbox messages", ex));
     }
@@ -189,11 +185,27 @@ public sealed class OutboxProcessor : BackgroundService
     {
         try
         {
-            var type = Type.GetType(message.EventType);
+            if (_typeCache.TryGetValue(message.EventType, out var cachedType))
+            {
+                return Result.Success<Type, Exception>(cachedType);
+            }
 
-            return type is not null
-                ? Result.Success<Type, Exception>(type)
-                : Result.Failure<Type, Exception>(new InvalidOperationException($"Unknown type: {message.EventType}"));
+            var type = Type.GetType(message.EventType);
+            
+            type ??= AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(a => a.GetTypes())
+                .FirstOrDefault(t => t.FullName == message.EventType || t.Name == message.EventType);
+
+            if (type is not null)
+            {
+                // Cache the result for next time
+                _typeCache[message.EventType] = type;
+                return Result.Success<Type, Exception>(type);
+            }
+            else
+            {
+                return new InvalidOperationException($"Type '{message.EventType}' could not be found in any loaded assembly.");
+            }
         }
         catch (Exception ex)
         {

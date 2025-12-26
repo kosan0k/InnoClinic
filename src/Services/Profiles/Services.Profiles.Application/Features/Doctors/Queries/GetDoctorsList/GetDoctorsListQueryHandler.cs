@@ -17,7 +17,7 @@ public sealed class GetDoctorsListQueryHandler : IRequestHandler<GetDoctorsListQ
         var doctors = await _doctorReadRepository.GetAllAsync(cancellationToken);
         var currentYear = DateTime.UtcNow.Year;
 
-        return doctors.Select(doctor => new DoctorListItemVm
+        return [.. doctors.Select(doctor => new DoctorListItemVm
         {
             Id = doctor.Id,
             FirstName = doctor.FirstName,
@@ -26,7 +26,7 @@ public sealed class GetDoctorsListQueryHandler : IRequestHandler<GetDoctorsListQ
             PhotoUrl = doctor.PhotoUrl,
             Experience = currentYear - doctor.CareerStartYear,
             Status = doctor.Status
-        }).ToList();
+        })];
     }
 }
 
