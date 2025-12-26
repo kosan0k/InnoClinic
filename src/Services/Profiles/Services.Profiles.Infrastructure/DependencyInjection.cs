@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Services.Profiles.Application.Common.Interfaces;
 using Services.Profiles.Application.Common.Persistence;
 using Services.Profiles.Infrastructure.Persistence;
+using Services.Profiles.Infrastructure.Persistence.Interceptors;
 using Services.Profiles.Infrastructure.Persistence.Repositories;
 using Services.Profiles.Infrastructure.Services;
 
@@ -30,14 +31,18 @@ public static class DependencyInjection
         var writeConnectionString = configuration.GetConnectionString("profiles-write-db")
             ?? throw new InvalidOperationException("profiles-write-db connection string is not configured");
 
-        services.AddDbContext<WriteDbContext>(options =>
-            options.UseNpgsql(writeConnectionString, npgsqlOptions =>
-            {
-                npgsqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 3,
-                    maxRetryDelay: TimeSpan.FromSeconds(5),
-                    errorCodesToAdd: null);
-            }));
+        services
+            .AddSingleton<OutboxInsertInterceptor>()
+            .AddDbContext<WriteDbContext>((provider, options) =>
+                options
+                    .UseNpgsql(writeConnectionString, npgsqlOptions =>
+                    {
+                        npgsqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 3,
+                            maxRetryDelay: TimeSpan.FromSeconds(5),
+                            errorCodesToAdd: null);
+                    })
+                    .AddInterceptors(provider.GetRequiredService<OutboxInsertInterceptor>()));
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<WriteDbContext>());
 
@@ -51,15 +56,18 @@ public static class DependencyInjection
         var readConnectionString = configuration.GetConnectionString("profiles-read-db")
             ?? throw new InvalidOperationException("profiles-read-db connection string is not configured");
 
-        services.AddDbContext<ReadDbContext>(options =>
-            options.UseNpgsql(readConnectionString, npgsqlOptions =>
-            {
-                npgsqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 3,
-                    maxRetryDelay: TimeSpan.FromSeconds(5),
-                    errorCodesToAdd: null);
-            })
-            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
+        services
+            .AddDbContext<ReadDbContext>(options =>
+                options
+                    .UseNpgsql(readConnectionString, npgsqlOptions =>
+                    {
+                        npgsqlOptions.EnableRetryOnFailure(
+                            maxRetryCount: 3,
+                            maxRetryDelay: TimeSpan.FromSeconds(5),
+                            errorCodesToAdd: null);
+                    })
+                    .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking))
+            .AddScoped<IDoctorProjectionWriter, DoctorProjectionWriter>();
 
         return services;
     }
@@ -80,7 +88,7 @@ public static class DependencyInjection
         services.AddSingleton<IOutboxNotifier>(sp => sp.GetRequiredService<OutboxNotifier>());
         
         services.AddScoped<IOutboxService, OutboxService>();
-        services.AddHostedService<OutboxProcessor>();
+        services.AddHostedService<OutboxProcessor>();        
 
         return services;
     }

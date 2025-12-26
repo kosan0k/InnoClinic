@@ -6,16 +6,9 @@ using Services.Profiles.Infrastructure.Persistence;
 
 namespace Services.Profiles.Infrastructure.Services;
 
-public sealed class OutboxService : IOutboxService
+public sealed class OutboxService(WriteDbContext context) : IOutboxService
 {
-    private readonly WriteDbContext _context;
-    private readonly IOutboxNotifier _notifier;
-
-    public OutboxService(WriteDbContext context, IOutboxNotifier notifier)
-    {
-        _context = context;
-        _notifier = notifier;
-    }
+    private readonly WriteDbContext _context = context;
 
     public async Task AddMessageAsync(IIntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
     {
@@ -31,10 +24,6 @@ public sealed class OutboxService : IOutboxService
         };
 
         await _context.OutboxMessages.AddAsync(outboxMessage, cancellationToken);
-        
-        // Notify the processor that a new message is available
-        // This triggers immediate processing instead of waiting for the polling interval
-        _notifier.NotifyNewMessage();
     }
 }
 

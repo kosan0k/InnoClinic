@@ -25,8 +25,8 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
         builder.Property(o => o.Error)
             .HasMaxLength(2000);
 
-        builder.HasIndex(o => o.ProcessedOn)
-            .HasFilter("\"ProcessedOn\" IS NULL");
+        builder.HasIndex(x => new { x.ProcessedOn, x.OccurredOn })
+           .HasFilter($"{nameof(OutboxMessage.ProcessedOn)} IS NULL");
     }
 }
 

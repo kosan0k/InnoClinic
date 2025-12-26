@@ -1,246 +1,164 @@
-using System.Text.Json;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Services.Profiles.Application.Features.Doctors.Events;
 using Services.Profiles.Domain.Entities;
 using Services.Profiles.Infrastructure.Persistence;
+using System.Text.Json;
 
 namespace Services.Profiles.Infrastructure.Services;
 
 public sealed class OutboxProcessor : BackgroundService
 {
-    private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly OutboxNotifier _notifier;
     private readonly ILogger<OutboxProcessor> _logger;
-    
-    // Fallback polling interval - used when no notifications are received
-    // This ensures reliability even if notifications are missed
-    private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(10);
-    
+
+    // Configurable constants
+    private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(5); // Fallback loop
     private const int BatchSize = 20;
     private const int MaxRetryCount = 3;
 
-    private static readonly Dictionary<string, Type> EventTypes = new()
-    {
-        [nameof(DoctorCreatedEvent)] = typeof(DoctorCreatedEvent),
-        [nameof(DoctorUpdatedEvent)] = typeof(DoctorUpdatedEvent),
-        [nameof(DoctorStatusChangedEvent)] = typeof(DoctorStatusChangedEvent)
-    };
-
     public OutboxProcessor(
-        IServiceScopeFactory serviceScopeFactory,
+        IServiceScopeFactory scopeFactory,
         OutboxNotifier notifier,
         ILogger<OutboxProcessor> logger)
     {
-        _serviceScopeFactory = serviceScopeFactory;
+        _scopeFactory = scopeFactory;
         _notifier = notifier;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Outbox processor started (hybrid mode: notification + {PollingInterval}s fallback polling)", 
-            _pollingInterval.TotalSeconds);
+        _logger.LogInformation("Outbox Processor started.");
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                // Wait for either:
-                // 1. A notification that new messages are available (immediate processing)
-                // 2. The polling interval timeout (fallback for reliability)
-                await WaitForWorkAsync(stoppingToken);
-                
-                await ProcessOutboxMessagesAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                // Graceful shutdown
-                break;
+                // Attempt to process a batch
+                bool processedWork = await ProcessBatchAsync(stoppingToken);
+
+                // If we processed work, check immediately for more (drain the queue).
+                // If no work, wait for Signal OR Timeout (Polling).
+                if (!processedWork)
+                {
+                    await WaitForSignalOrTimeoutAsync(stoppingToken);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing outbox messages");
-                
-                // Brief delay before retry to prevent tight error loops
-                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
+                _logger.LogError(ex, "Fatal error in Outbox loop");
+                await Task.Delay(1000, stoppingToken); // Circuit breaker pause
             }
         }
-
-        _logger.LogInformation("Outbox processor stopped");
     }
 
-    /// <summary>
-    /// Waits for either a notification or the polling timeout, whichever comes first.
-    /// This enables immediate processing on notification while maintaining reliability via polling.
-    /// </summary>
-    private async Task WaitForWorkAsync(CancellationToken stoppingToken)
+    private async Task WaitForSignalOrTimeoutAsync(CancellationToken ct)
     {
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-        timeoutCts.CancelAfter(_pollingInterval);
-
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(_pollingInterval);
         try
         {
-            // Wait for notification (will throw OperationCanceledException on timeout)
-            await _notifier.Reader.ReadAsync(timeoutCts.Token);
-            _logger.LogDebug("Outbox processing triggered by notification");
+            await _notifier.Reader.ReadAsync(cts.Token);
         }
-        catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
-            // Timeout reached, not a shutdown - proceed with polling-based processing
-            _logger.LogDebug("Outbox processing triggered by polling interval");
+            // Timeout meant no signal received; proceed to poll.
         }
     }
 
-    private async Task ProcessOutboxMessagesAsync(CancellationToken cancellationToken)
+    private async Task<bool> ProcessBatchAsync(CancellationToken ct)
     {
-        await using var scope = _serviceScopeFactory.CreateAsyncScope();
-        var writeContext = scope.ServiceProvider.GetRequiredService<WriteDbContext>();
-        var readContext = scope.ServiceProvider.GetRequiredService<ReadDbContext>();
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<WriteDbContext>();
+        var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
 
-        var messages = await writeContext.OutboxMessages
-            .Where(m => m.ProcessedOn == null && m.RetryCount < MaxRetryCount)
-            .OrderBy(m => m.OccurredOn)
-            .Take(BatchSize)
-            .ToListAsync(cancellationToken);
+        // --- STEP A: Fetch & Lock (Concurrency Safety) ---
+        // We use an explicit transaction to hold the 'SKIP LOCKED' row locks
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
 
+        // POSTGRESQL SYNTAX:
+        var sql = $@"
+            SELECT * FROM ""OutboxMessages""
+            WHERE ""ProcessedOn"" IS NULL
+            ORDER BY ""OccurredOn""
+            LIMIT {BatchSize}
+            FOR UPDATE SKIP LOCKED";
+
+        // FOR SQL SERVER USE:
+        // var sql = $@"
+        //    SELECT TOP {BatchSize} * //    FROM OutboxMessages WITH (UPDLOCK, READPAST)
+        //    WHERE ProcessedOn IS NULL
+        //    ORDER BY OccurredOn";
+
+        var messages = await dbContext.OutboxMessages
+            .FromSqlRaw(sql)
+            .ToListAsync(ct);
+
+        if (messages.Count == 0)
+        {
+            return false;
+        }
+
+        // --- STEP B: Process & Clone (Immutability Handling) ---
         foreach (var message in messages)
         {
+            OutboxMessage updatedMessage;
+
             try
             {
-                await ProcessMessageAsync(message, readContext, cancellationToken);
+                // Dynamic Deserialization
+                var eventType = Type.GetType(message.EventType) ?? throw new Exception($"Unknown type: {message.EventType}");
+                var domainEvent = JsonSerializer.Deserialize(message.Payload, eventType);
 
-                var processedMessage = message with { ProcessedOn = DateTime.UtcNow };
-                writeContext.Entry(message).CurrentValues.SetValues(processedMessage);
-                
-                _logger.LogInformation(
-                    "Processed outbox message {MessageId} of type {EventType}",
-                    message.Id,
-                    message.EventType);
+                // Dispatch via MediatR (Clean Architecture)
+                if (domainEvent is INotification notification)
+                {
+                    await publisher.Publish(notification, ct);
+                }
+
+                // Success: Create NEW record state (since we can't edit the old one)
+                updatedMessage = message with
+                {
+                    ProcessedOn = DateTime.UtcNow,
+                    Error = null
+                };
             }
             catch (Exception ex)
             {
-                var failedMessage = message with
+                // Failure: Create NEW record state with incremented retry
+                var nextRetryCount = message.RetryCount + 1;
+
+                updatedMessage = message with
                 {
-                    RetryCount = message.RetryCount + 1,
-                    Error = ex.Message
+                    RetryCount = nextRetryCount,
+                    Error = ex.ToString()
                 };
-                writeContext.Entry(message).CurrentValues.SetValues(failedMessage);
 
-                _logger.LogError(
-                    ex,
-                    "Failed to process outbox message {MessageId} of type {EventType}. Retry count: {RetryCount}",
-                    message.Id,
-                    message.EventType,
-                    failedMessage.RetryCount);
+                // If max retries exceeded, mark as processed (Poison Pill) to stop the loop
+                if (nextRetryCount >= MaxRetryCount)
+                {
+                    updatedMessage = updatedMessage with { ProcessedOn = DateTime.UtcNow };
+                    _logger.LogError(ex, "Message {Id} reached max retries and was dead-lettered.", message.Id);
+                }
+                else
+                {
+                    _logger.LogWarning(ex, "Message {Id} failed. Retry {Count}/{Max}.", message.Id, nextRetryCount, MaxRetryCount);
+                }
             }
+
+            // Update EF Change Tracker ---            
+            dbContext.Entry(message).CurrentValues.SetValues(updatedMessage);
         }
 
-        if (messages.Count > 0)
-        {
-            await writeContext.SaveChangesAsync(cancellationToken);
-        }
-    }
+        // Commit
+        await dbContext.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
 
-    private async Task ProcessMessageAsync(
-        OutboxMessage message,
-        ReadDbContext readContext,
-        CancellationToken cancellationToken)
-    {
-        if (!EventTypes.TryGetValue(message.EventType, out var eventType))
-        {
-            _logger.LogWarning("Unknown event type: {EventType}", message.EventType);
-            return;
-        }
-
-        var domainEvent = JsonSerializer.Deserialize(message.Payload, eventType);
-
-        switch (domainEvent)
-        {
-            case DoctorCreatedEvent created:
-                await HandleDoctorCreatedAsync(created, readContext, cancellationToken);
-                break;
-
-            case DoctorUpdatedEvent updated:
-                await HandleDoctorUpdatedAsync(updated, readContext, cancellationToken);
-                break;
-
-            case DoctorStatusChangedEvent statusChanged:
-                await HandleDoctorStatusChangedAsync(statusChanged, readContext, cancellationToken);
-                break;
-        }
-    }
-
-    private static async Task HandleDoctorCreatedAsync(
-        DoctorCreatedEvent @event,
-        ReadDbContext readContext,
-        CancellationToken cancellationToken)
-    {
-        var doctor = new Doctor
-        {
-            Id = @event.DoctorId,
-            FirstName = @event.FirstName,
-            LastName = @event.LastName,
-            MiddleName = @event.MiddleName,
-            DateOfBirth = @event.DateOfBirth,
-            Email = @event.Email,
-            PhotoUrl = @event.PhotoUrl,
-            CareerStartYear = @event.CareerStartYear,
-            Status = @event.Status
-        };
-
-        await readContext.Doctors.AddAsync(doctor, cancellationToken);
-        await readContext.SaveChangesAsync(cancellationToken);
-    }
-
-    private static async Task HandleDoctorUpdatedAsync(
-        DoctorUpdatedEvent @event,
-        ReadDbContext readContext,
-        CancellationToken cancellationToken)
-    {
-        var existingDoctor = await readContext.Doctors
-            .FirstOrDefaultAsync(d => d.Id == @event.DoctorId, cancellationToken);
-
-        if (existingDoctor is null)
-        {
-            return;
-        }
-
-        var updatedDoctor = new Doctor
-        {
-            Id = @event.DoctorId,
-            FirstName = @event.FirstName,
-            LastName = @event.LastName,
-            MiddleName = @event.MiddleName,
-            DateOfBirth = @event.DateOfBirth,
-            Email = @event.Email,
-            PhotoUrl = @event.PhotoUrl,
-            CareerStartYear = @event.CareerStartYear,
-            Status = @event.Status
-        };
-
-        readContext.Entry(existingDoctor).CurrentValues.SetValues(updatedDoctor);
-        await readContext.SaveChangesAsync(cancellationToken);
-    }
-
-    private static async Task HandleDoctorStatusChangedAsync(
-        DoctorStatusChangedEvent @event,
-        ReadDbContext readContext,
-        CancellationToken cancellationToken)
-    {
-        var existingDoctor = await readContext.Doctors
-            .FirstOrDefaultAsync(d => d.Id == @event.DoctorId, cancellationToken);
-
-        if (existingDoctor is null)
-        {
-            return;
-        }
-
-        var updatedDoctor = existingDoctor with { Status = @event.NewStatus };
-        readContext.Entry(existingDoctor).CurrentValues.SetValues(updatedDoctor);
-        await readContext.SaveChangesAsync(cancellationToken);
+        return true;
     }
 }
 
