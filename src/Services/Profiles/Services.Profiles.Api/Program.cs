@@ -32,7 +32,8 @@ public class Program
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
-            app.MapOpenApi();
+            app.MapDefaultOpenApi(developmentOnly: true);
+            app.MapGet("/", () => Results.Redirect("/scalar/v1")).ExcludeFromDescription();
         }
 
         app.UseHttpsRedirection();

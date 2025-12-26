@@ -10,16 +10,15 @@ public class OutboxInsertInterceptor(OutboxNotifier notifier) : SaveChangesInter
     private readonly OutboxNotifier _notifier = notifier;
 
     public override async ValueTask<int> SavedChangesAsync(
-    SaveChangesCompletedEventData eventData,
-    int result,
-    CancellationToken cancellationToken = default)
+        SaveChangesCompletedEventData eventData,
+        int result,
+        CancellationToken cancellationToken = default)
     {
         // Check if the ChangeTracker has any added OutboxMessages
         var hasOutboxMessages = eventData.Context?
             .ChangeTracker
             .Entries<OutboxMessage>()
-            .Any(e => e.State == EntityState.Added || e.State == EntityState.Modified)
-            ?? false;
+            .Any(e => e.State == EntityState.Added || e.State == EntityState.Modified) ?? false;
 
         if (result > 0 && hasOutboxMessages)
         {
