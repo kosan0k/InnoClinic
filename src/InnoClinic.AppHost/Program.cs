@@ -42,7 +42,7 @@ var profilesReadDb = postgres.AddDatabase("profiles-read-db");
 #region Application Services
 var keycloakRealm = "AppRealm";
 
-var identityApi = builder.AddProject<Projects.Services_Identity_Api>("identity-api")
+var identityApi = builder.AddProject<Projects.Services_Identity_Api>("services-identity-api")
     .WithReference(redis)
     .WaitFor(redis)
     .WithReference(keycloak)
