@@ -60,11 +60,11 @@ namespace Services.Profiles.Infrastructure.Persistence.Migrations.Write
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_OutboxMessages_ProcessedOn",
+                name: "IX_OutboxMessages_ProcessedOn_OccurredOn",
                 schema: "write",
                 table: "OutboxMessages",
-                column: "ProcessedOn",
-                filter: "\"ProcessedOn\" IS NULL");
+                columns: ["ProcessedOn", "OccurredOn"],
+                filter: "ProcessedOn IS NULL");
         }
 
         /// <inheritdoc />

@@ -98,8 +98,8 @@ namespace Services.Profiles.Infrastructure.Persistence.Migrations.Write
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProcessedOn")
-                        .HasFilter("\"ProcessedOn\" IS NULL");
+                    b.HasIndex("ProcessedOn", "OccurredOn")
+                        .HasFilter("ProcessedOn IS NULL");
 
                     b.ToTable("OutboxMessages", "write");
                 });
