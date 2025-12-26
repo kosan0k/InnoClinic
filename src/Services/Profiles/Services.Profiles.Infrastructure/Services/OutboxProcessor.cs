@@ -20,6 +20,8 @@ public sealed class OutboxProcessor : BackgroundService
     private const int BatchSize = 20;
     private const int MaxRetryCount = 3;
 
+    private string _fullTableName = string.Empty;
+
     public OutboxProcessor(
         IServiceScopeFactory scopeFactory,
         OutboxNotifier notifier,
@@ -37,6 +39,13 @@ public sealed class OutboxProcessor : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Outbox Processor started.");
+
+        using (var setupScope = _scopeFactory.CreateScope())
+        {
+            var context = setupScope.ServiceProvider.GetRequiredService<WriteDbContext>();
+            _fullTableName = ResolveTableName(context);
+            _logger.LogInformation("Outbox Processor mapped to table: {TableName}", _fullTableName);
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -56,6 +65,20 @@ public sealed class OutboxProcessor : BackgroundService
         }
     }
 
+    private static string ResolveTableName(WriteDbContext context)
+    {
+        var entityType = context.Model.FindEntityType(typeof(OutboxMessage))
+            ?? throw new InvalidOperationException("OutboxMessage is not registered in DbContext");
+
+        var schema = entityType.GetSchema();
+        var tableName = entityType.GetTableName();
+
+        // Safe quoting for Postgres to strictly match casing
+        return string.IsNullOrEmpty(schema)
+            ? $@"""{tableName}"""
+            : $@"""{schema}"".""{tableName}""";
+    }
+
     /// <summary>
     /// Wraps the complex DB Transaction logic in a Result.
     /// Returns Success(true) if work was done, Success(false) if queue was empty.
@@ -63,49 +86,55 @@ public sealed class OutboxProcessor : BackgroundService
     /// </summary>
     private async Task<Result<bool, Exception>> ProcessBatchAsync(CancellationToken ct)
     {
-        // Result.Try captures any Exception thrown within the lambda
         return await Result.Try(
-            func: async () => await ProcessMessagesAsync(),
-            errorHandler: ex => new Exception("Error onb processing outbox messages", ex));
-
-        async ValueTask<bool> ProcessMessagesAsync()
-        {
-            await using var scope = _scopeFactory.CreateAsyncScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<WriteDbContext>();
-            var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
-
-            // Fetch & Lock
-            await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
-
-            var sql = $@"
-                    SELECT * FROM ""OutboxMessages""
-                    WHERE ""ProcessedOn"" IS NULL
-                    ORDER BY ""OccurredOn""
-                    LIMIT {BatchSize}
-                    FOR UPDATE SKIP LOCKED";
-
-            var messages = await dbContext.OutboxMessages
-                .FromSqlRaw(sql)
-                .ToListAsync(ct);
-
-            if (messages.Count == 0)
-                return false;
-
-            // Process (In-Memory Logic)
-            foreach (var message in messages)
+            func: async () =>
             {
-                // This helper never throws; it returns the updated entity state
-                var updatedMessage = await ProcessSingleMessageAsync(message, publisher, ct);
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<WriteDbContext>();
+                var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
 
-                dbContext.Entry(message).CurrentValues.SetValues(updatedMessage);
-            }
+                // 1. Create Execution Strategy (for resilient retries)
+                var strategy = dbContext.Database.CreateExecutionStrategy();
 
-            // Commit
-            await dbContext.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
+                // 2. Execute the named method inside the strategy
+                //    This removes the "huge lambda" and makes the flow clear.
+                return await strategy.ExecuteAsync(
+                    operation: () => ProcessTransactionBatchAsync(dbContext, publisher, ct));
+            },
+            errorHandler: ex => new Exception("Error processing outbox messages", ex));
+    }
 
-            return true;
+    private async Task<bool> ProcessTransactionBatchAsync(
+        WriteDbContext dbContext,
+        IPublisher publisher,
+        CancellationToken ct)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+        
+        var sql = $@"
+            SELECT * FROM {_fullTableName}
+            WHERE ""ProcessedOn"" IS NULL
+            ORDER BY ""OccurredOn""
+            LIMIT {BatchSize}
+            FOR UPDATE SKIP LOCKED";
+
+        var messages = await dbContext.OutboxMessages
+            .FromSqlRaw(sql)
+            .ToListAsync(ct);
+
+        if (messages.Count == 0)
+            return false;
+
+        foreach (var message in messages)
+        {
+            var updatedMessage = await ProcessSingleMessageAsync(message, publisher, ct);
+            dbContext.Entry(message).CurrentValues.SetValues(updatedMessage);
         }
+
+        await dbContext.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+
+        return true;
     }
 
     /// <summary>
