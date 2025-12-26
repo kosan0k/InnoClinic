@@ -12,7 +12,8 @@ var postgresImportPath = Path.Combine(AppContext.BaseDirectory, "..", "..", ".."
 var postgres = builder.AddPostgres("postgres")
     .WithDataVolume() // Persist data between restarts
     .WithPgAdmin()   // Optional: Adds a UI to manage the DB
-    .WithBindMount(postgresImportPath, "/docker-entrypoint-initdb.d"); // Mount the init script folder into the container
+    .WithBindMount(postgresImportPath, "/docker-entrypoint-initdb.d") // Mount the init script folder into the container
+    .WithLifetime(ContainerLifetime.Persistent); 
 
 // Keycloak for authentication and authorization
 var keycloakDb = postgres.AddDatabase("keycloak-db");
