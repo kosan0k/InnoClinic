@@ -1,3 +1,4 @@
+using CSharpFunctionalExtensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,8 +16,7 @@ public sealed class OutboxProcessor : BackgroundService
     private readonly OutboxNotifier _notifier;
     private readonly ILogger<OutboxProcessor> _logger;
 
-    // Configurable constants
-    private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(5); // Fallback loop
+    private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(5);
     private const int BatchSize = 20;
     private const int MaxRetryCount = 3;
 
@@ -30,135 +30,199 @@ public sealed class OutboxProcessor : BackgroundService
         _logger = logger;
     }
 
+    /// <summary>
+    /// The main loop is now a linear pipeline of Results.
+    /// No try-catch blocks here; errors flow to OnFailure.
+    /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Outbox Processor started.");
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
-            {
-                // Attempt to process a batch
-                bool processedWork = await ProcessBatchAsync(stoppingToken);
+            var result = await ProcessBatchAsync(stoppingToken)
+                .Bind(async hasProcessedWork =>
+                    hasProcessedWork
+                        ? UnitResult.Success<Exception>() // Work found? Loop immediately.
+                        : await WaitForSignalOrTimeoutAsync(stoppingToken) // No work? Wait.
+                );
 
-                // If we processed work, check immediately for more (drain the queue).
-                // If no work, wait for Signal OR Timeout (Polling).
-                if (!processedWork)
-                {
-                    await WaitForSignalOrTimeoutAsync(stoppingToken);
-                }
-            }
-            catch (Exception ex)
+            if (result.IsFailure)
             {
-                _logger.LogError(ex, "Fatal error in Outbox loop");
-                await Task.Delay(1000, stoppingToken); // Circuit breaker pause
+                _logger.LogError(result.Error, "Fatal error in Outbox loop. Pausing.");
+                // Manual delay on catastrophic failure (e.g., DB down) to prevent log flooding
+                await Task.Delay(1000, stoppingToken);
             }
         }
     }
 
-    private async Task WaitForSignalOrTimeoutAsync(CancellationToken ct)
+    /// <summary>
+    /// Wraps the complex DB Transaction logic in a Result.
+    /// Returns Success(true) if work was done, Success(false) if queue was empty.
+    /// Returns Failure(Exception) if DB connection/commit fails.
+    /// </summary>
+    private async Task<Result<bool, Exception>> ProcessBatchAsync(CancellationToken ct)
     {
+        // Result.Try captures any Exception thrown within the lambda
+        return await Result.Try(
+            func: async () => await ProcessMessagesAsync(),
+            errorHandler: ex => new Exception("Error onb processing outbox messages", ex));
+
+        async ValueTask<bool> ProcessMessagesAsync()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<WriteDbContext>();
+            var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
+
+            // Fetch & Lock
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+
+            var sql = $@"
+                    SELECT * FROM ""OutboxMessages""
+                    WHERE ""ProcessedOn"" IS NULL
+                    ORDER BY ""OccurredOn""
+                    LIMIT {BatchSize}
+                    FOR UPDATE SKIP LOCKED";
+
+            var messages = await dbContext.OutboxMessages
+                .FromSqlRaw(sql)
+                .ToListAsync(ct);
+
+            if (messages.Count == 0)
+                return false;
+
+            // Process (In-Memory Logic)
+            foreach (var message in messages)
+            {
+                // This helper never throws; it returns the updated entity state
+                var updatedMessage = await ProcessSingleMessageAsync(message, publisher, ct);
+
+                dbContext.Entry(message).CurrentValues.SetValues(updatedMessage);
+            }
+
+            // Commit
+            await dbContext.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Wraps the waiting logic. 
+    /// Returns Success when signal received OR timeout occurs (both are valid flow states).
+    /// Returns Failure only if the channel reader itself crashes (unlikely).
+    /// </summary>
+    private async ValueTask<UnitResult<Exception>> WaitForSignalOrTimeoutAsync(CancellationToken ct)
+    {
+        UnitResult<Exception> result;
+
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(_pollingInterval);
+
         try
         {
             await _notifier.Reader.ReadAsync(cts.Token);
+            result = UnitResult.Success<Exception>();
         }
         catch (OperationCanceledException)
         {
-            // Timeout meant no signal received; proceed to poll.
+            // Timeout is not an error; it's a valid "Wait Finished" state.
+            result = UnitResult.Success<Exception>();
+        }
+        catch (Exception ex)
+        {
+            result = ex;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Pure functional pipeline for a single message.
+    /// </summary>
+    private async ValueTask<OutboxMessage> ProcessSingleMessageAsync(
+        OutboxMessage message,
+        IPublisher publisher,
+        CancellationToken ct)
+    {
+        var pipelineResult = await GetEventType(message)
+            .Bind(type => DeserializeEvent(message.Payload, type))
+            .Bind(async domainEvent => await PublishEvent(domainEvent, publisher, ct));
+
+        return pipelineResult.Match(
+            onSuccess: () => MarkAsSuccess(message),
+            onFailure: (exception) => MarkAsFailure(message, exception)
+        );
+    }
+
+    private static Result<Type, Exception> GetEventType(OutboxMessage message)
+    {
+        try
+        {
+            var type = Type.GetType(message.EventType);
+
+            return type is not null
+                ? Result.Success<Type, Exception>(type)
+                : Result.Failure<Type, Exception>(new InvalidOperationException($"Unknown type: {message.EventType}"));
+        }
+        catch (Exception ex)
+        {
+            return Result.Failure<Type, Exception>(ex);
         }
     }
 
-    private async Task<bool> ProcessBatchAsync(CancellationToken ct)
+    private static Result<INotification, Exception> DeserializeEvent(string payload, Type type)
     {
-        await using var scope = _scopeFactory.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<WriteDbContext>();
-        var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
-
-        // --- STEP A: Fetch & Lock (Concurrency Safety) ---
-        // We use an explicit transaction to hold the 'SKIP LOCKED' row locks
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
-
-        // POSTGRESQL SYNTAX:
-        var sql = $@"
-            SELECT * FROM ""OutboxMessages""
-            WHERE ""ProcessedOn"" IS NULL
-            ORDER BY ""OccurredOn""
-            LIMIT {BatchSize}
-            FOR UPDATE SKIP LOCKED";
-
-        // FOR SQL SERVER USE:
-        // var sql = $@"
-        //    SELECT TOP {BatchSize} * //    FROM OutboxMessages WITH (UPDLOCK, READPAST)
-        //    WHERE ProcessedOn IS NULL
-        //    ORDER BY OccurredOn";
-
-        var messages = await dbContext.OutboxMessages
-            .FromSqlRaw(sql)
-            .ToListAsync(ct);
-
-        if (messages.Count == 0)
+        try
         {
-            return false;
-        }
+            var domainEvent = JsonSerializer.Deserialize(payload, type) as INotification;
 
-        // --- STEP B: Process & Clone (Immutability Handling) ---
-        foreach (var message in messages)
+            return domainEvent is not null
+                ? Result.Success<INotification, Exception>(domainEvent)
+                : Result.Failure<INotification, Exception>(new InvalidOperationException("Payload is not a valid INotification"));
+        }
+        catch (Exception ex)
         {
-            OutboxMessage updatedMessage;
-
-            try
-            {
-                // Dynamic Deserialization
-                var eventType = Type.GetType(message.EventType) ?? throw new Exception($"Unknown type: {message.EventType}");
-                var domainEvent = JsonSerializer.Deserialize(message.Payload, eventType);
-
-                // Dispatch via MediatR (Clean Architecture)
-                if (domainEvent is INotification notification)
-                {
-                    await publisher.Publish(notification, ct);
-                }
-
-                // Success: Create NEW record state (since we can't edit the old one)
-                updatedMessage = message with
-                {
-                    ProcessedOn = DateTime.UtcNow,
-                    Error = null
-                };
-            }
-            catch (Exception ex)
-            {
-                // Failure: Create NEW record state with incremented retry
-                var nextRetryCount = message.RetryCount + 1;
-
-                updatedMessage = message with
-                {
-                    RetryCount = nextRetryCount,
-                    Error = ex.ToString()
-                };
-
-                // If max retries exceeded, mark as processed (Poison Pill) to stop the loop
-                if (nextRetryCount >= MaxRetryCount)
-                {
-                    updatedMessage = updatedMessage with { ProcessedOn = DateTime.UtcNow };
-                    _logger.LogError(ex, "Message {Id} reached max retries and was dead-lettered.", message.Id);
-                }
-                else
-                {
-                    _logger.LogWarning(ex, "Message {Id} failed. Retry {Count}/{Max}.", message.Id, nextRetryCount, MaxRetryCount);
-                }
-            }
-
-            // Update EF Change Tracker ---            
-            dbContext.Entry(message).CurrentValues.SetValues(updatedMessage);
+            return Result.Failure<INotification, Exception>(ex);
         }
+    }
 
-        // Commit
-        await dbContext.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
+    private static async ValueTask<UnitResult<Exception>> PublishEvent(
+        INotification domainEvent,
+        IPublisher publisher,
+        CancellationToken ct)
+    {
+        try
+        {
+            await publisher.Publish(domainEvent, ct);
+            return UnitResult.Success<Exception>();
+        }
+        catch (Exception ex)
+        {
+            return new Exception("Error on publishing event", ex);
+        }
+    }
 
-        return true;
+    private static OutboxMessage MarkAsSuccess(OutboxMessage message) =>
+        message with { ProcessedOn = DateTime.UtcNow, Error = null };
+
+    private OutboxMessage MarkAsFailure(OutboxMessage message, Exception ex)
+    {
+        var nextRetryCount = message.RetryCount + 1;
+        var isPoisonPill = nextRetryCount >= MaxRetryCount;
+
+        if (isPoisonPill)
+            _logger.LogError(ex, "Message {Id} dead-lettered.", message.Id);
+        else
+            _logger.LogWarning(ex, "Message {Id} failed. Retry {Count}.", message.Id, nextRetryCount);
+
+        return message with
+        {
+            RetryCount = nextRetryCount,
+            Error = ex.Message,
+            ProcessedOn = isPoisonPill ? DateTime.UtcNow : null
+        };
     }
 }
 
