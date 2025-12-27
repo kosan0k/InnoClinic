@@ -40,8 +40,18 @@ public sealed class DoctorWriteConfiguration : IEntityTypeConfiguration<Doctor>
             .IsRequired()
             .HasConversion<int>();
 
+        builder.Property(d => d.SpecializationId)
+            .IsRequired();
+
+        // Configure relationship with Specialization
+        builder.HasOne(d => d.Specialization)
+            .WithMany()
+            .HasForeignKey(d => d.SpecializationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(d => d.Email)
             .IsUnique();
+
+        builder.HasIndex(d => d.SpecializationId);
     }
 }
-

@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Services.Profiles.Domain.Entities;
+using Services.Profiles.Infrastructure.Persistence.ReadModels;
 
 namespace Services.Profiles.Infrastructure.Persistence;
 
@@ -10,7 +10,7 @@ public sealed class ReadDbContext : DbContext
     {
     }
 
-    public DbSet<Doctor> Doctors => Set<Doctor>();
+    public DbSet<DoctorReadModel> Doctors => Set<DoctorReadModel>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,4 +21,3 @@ public sealed class ReadDbContext : DbContext
         base.OnModelCreating(modelBuilder);
     }
 }
-

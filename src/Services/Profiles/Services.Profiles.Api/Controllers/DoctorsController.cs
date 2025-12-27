@@ -73,7 +73,8 @@ public sealed class DoctorsController : ControllerBase
             DateOfBirth = request.DateOfBirth,
             Email = request.Email,
             PhotoUrl = request.PhotoUrl,
-            CareerStartYear = request.CareerStartYear
+            CareerStartYear = request.CareerStartYear,
+            SpecializationId = request.SpecializationId
         };
 
         var doctorId = await _sender.Send(command, cancellationToken);
@@ -102,6 +103,7 @@ public sealed class DoctorsController : ControllerBase
             DateOfBirth = request.DateOfBirth,
             PhotoUrl = request.PhotoUrl,
             CareerStartYear = request.CareerStartYear,
+            SpecializationId = request.SpecializationId,
             Status = request.Status
         };
 

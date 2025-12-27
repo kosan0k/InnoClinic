@@ -14,26 +14,6 @@ public sealed class GetDoctorProfileQueryHandler : IRequestHandler<GetDoctorProf
 
     public async Task<DoctorProfileVm?> Handle(GetDoctorProfileQuery request, CancellationToken cancellationToken)
     {
-        var doctor = await _doctorReadRepository.GetByIdAsync(request.DoctorId, cancellationToken);
-
-        if (doctor is null)
-        {
-            return null;
-        }
-
-        return new DoctorProfileVm
-        {
-            Id = doctor.Id,
-            FirstName = doctor.FirstName,
-            LastName = doctor.LastName,
-            MiddleName = doctor.MiddleName,
-            DateOfBirth = doctor.DateOfBirth,
-            Email = doctor.Email,
-            PhotoUrl = doctor.PhotoUrl,
-            CareerStartYear = doctor.CareerStartYear,
-            Experience = DateTime.UtcNow.Year - doctor.CareerStartYear,
-            Status = doctor.Status
-        };
+        return await _doctorReadRepository.GetByIdAsync(request.DoctorId, cancellationToken);
     }
 }
-

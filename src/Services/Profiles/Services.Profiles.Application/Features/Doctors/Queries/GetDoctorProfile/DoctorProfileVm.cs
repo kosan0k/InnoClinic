@@ -14,4 +14,7 @@ public sealed record DoctorProfileVm
     public required int CareerStartYear { get; init; }
     public required int Experience { get; init; }
     public required DoctorStatus Status { get; init; }
+    public required Guid SpecializationId { get; init; }
+    public required string SpecializationName { get; init; }
+    public required IReadOnlyList<string> Services { get; init; }
 }

@@ -22,7 +22,7 @@ namespace Services.Profiles.Infrastructure.Persistence.Migrations.Read
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Services.Profiles.Domain.Entities.Doctor", b =>
+            modelBuilder.Entity("Services.Profiles.Infrastructure.Persistence.ReadModels.DoctorReadModel", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -57,10 +57,26 @@ namespace Services.Profiles.Infrastructure.Persistence.Migrations.Read
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string[]>("Services")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<Guid>("SpecializationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SpecializationName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SpecializationId");
+
+                    b.HasIndex("SpecializationName");
 
                     b.HasIndex("Status");
 

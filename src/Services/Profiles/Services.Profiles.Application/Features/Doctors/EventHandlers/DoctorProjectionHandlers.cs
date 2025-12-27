@@ -1,8 +1,6 @@
 ﻿using MediatR;
-using Microsoft.Extensions.Logging;
 using Services.Profiles.Application.Common.Persistence;
 using Services.Profiles.Application.Features.Doctors.Events;
-using Services.Profiles.Domain.Entities;
 
 namespace Services.Profiles.Application.Features.Doctors.EventHandlers;
 
@@ -12,10 +10,14 @@ public class DoctorProjectionHandlers :
     INotificationHandler<DoctorStatusChangedEvent>
 {
     private readonly IDoctorProjectionWriter _writer;
+    private readonly ISpecializationRepository _specializationRepository;
 
-    public DoctorProjectionHandlers(IDoctorProjectionWriter writer)
+    public DoctorProjectionHandlers(
+        IDoctorProjectionWriter writer,
+        ISpecializationRepository specializationRepository)
     {
         _writer = writer;
+        _specializationRepository = specializationRepository;
     }
 
     public async Task Handle(DoctorCreatedEvent notification, CancellationToken ct)
@@ -25,38 +27,56 @@ public class DoctorProjectionHandlers :
             return;
         }
 
-        var doctor = new Doctor
-        {
-            Id = notification.DoctorId,
-            FirstName = notification.FirstName,
-            LastName = notification.LastName,
-            MiddleName = notification.MiddleName,
-            DateOfBirth = notification.DateOfBirth,
-            Email = notification.Email,
-            PhotoUrl = notification.PhotoUrl,
-            CareerStartYear = notification.CareerStartYear,
-            Status = notification.Status
-        };
+        // Fetch specialization details (with services) from write database
+        var specialization = await _specializationRepository.GetByIdAsync(notification.SpecializationId, ct) 
+            ?? throw new InvalidOperationException($"Specialization with ID {notification.SpecializationId} not found during projection sync.");
 
-        await _writer.CreateAsync(doctor, ct);
+        // Extract service names from the Service entities
+        var serviceNames = specialization.Services
+            .Select(s => s.Name)
+            .ToList();
+
+        await _writer.CreateAsync(
+            id: notification.DoctorId,
+            firstName: notification.FirstName,
+            lastName: notification.LastName,
+            middleName: notification.MiddleName,
+            dateOfBirth: notification.DateOfBirth,
+            email: notification.Email,
+            photoUrl: notification.PhotoUrl,
+            careerStartYear: notification.CareerStartYear,
+            status: notification.Status,
+            specializationId: notification.SpecializationId,
+            specializationName: specialization.Name,
+            services: serviceNames,
+            cancellationToken: ct);
     }
 
     public async Task Handle(DoctorUpdatedEvent notification, CancellationToken ct)
     {
-        var doctor = new Doctor
-        {
-            Id = notification.DoctorId,
-            FirstName = notification.FirstName,
-            LastName = notification.LastName,
-            MiddleName = notification.MiddleName,
-            DateOfBirth = notification.DateOfBirth,
-            Email = notification.Email,
-            PhotoUrl = notification.PhotoUrl,
-            CareerStartYear = notification.CareerStartYear,
-            Status = notification.Status
-        };
+        // Fetch specialization details (with services) from write database
+        var specialization = await _specializationRepository.GetByIdAsync(notification.SpecializationId, ct) 
+            ?? throw new InvalidOperationException($"Specialization with ID {notification.SpecializationId} not found during projection sync.");
 
-        await _writer.UpdateAsync(doctor, ct);
+        // Extract service names from the Service entities
+        var serviceNames = specialization.Services
+            .Select(s => s.Name)
+            .ToList();
+
+        await _writer.UpdateAsync(
+            id: notification.DoctorId,
+            firstName: notification.FirstName,
+            lastName: notification.LastName,
+            middleName: notification.MiddleName,
+            dateOfBirth: notification.DateOfBirth,
+            email: notification.Email,
+            photoUrl: notification.PhotoUrl,
+            careerStartYear: notification.CareerStartYear,
+            status: notification.Status,
+            specializationId: notification.SpecializationId,
+            specializationName: specialization.Name,
+            services: serviceNames,
+            cancellationToken: ct);
     }
 
     public async Task Handle(DoctorStatusChangedEvent notification, CancellationToken ct)

@@ -10,15 +10,18 @@ namespace Services.Profiles.Application.Features.Doctors.Commands.Edit;
 public sealed class EditDoctorCommandHandler : IRequestHandler<EditDoctorCommand>
 {
     private readonly IDoctorWriteRepository _doctorRepository;
+    private readonly ISpecializationRepository _specializationRepository;
     private readonly IOutboxService _outboxService;
     private readonly IUnitOfWork _unitOfWork;
 
     public EditDoctorCommandHandler(
         IDoctorWriteRepository doctorRepository,
+        ISpecializationRepository specializationRepository,
         IOutboxService outboxService,
         IUnitOfWork unitOfWork)
     {
         _doctorRepository = doctorRepository;
+        _specializationRepository = specializationRepository;
         _outboxService = outboxService;
         _unitOfWork = unitOfWork;
     }
@@ -28,6 +31,18 @@ public sealed class EditDoctorCommandHandler : IRequestHandler<EditDoctorCommand
         var doctor = await _doctorRepository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new NotFoundException(nameof(Doctor), request.Id);
 
+        // Validate that the specialization exists
+        var specializationExists = await _specializationRepository.ExistsAsync(
+            request.SpecializationId, 
+            cancellationToken);
+
+        if (!specializationExists)
+        {
+            throw new NotFoundException(
+                nameof(Specialization), 
+                request.SpecializationId.ToString());
+        }
+
         var updatedDoctor = doctor.Update(
             firstName: request.FirstName,
             lastName: request.LastName,
@@ -35,6 +50,7 @@ public sealed class EditDoctorCommandHandler : IRequestHandler<EditDoctorCommand
             dateOfBirth: request.DateOfBirth,
             photoUrl: request.PhotoUrl,
             careerStartYear: request.CareerStartYear,
+            specializationId: request.SpecializationId,
             status: request.Status);
 
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -53,6 +69,7 @@ public sealed class EditDoctorCommandHandler : IRequestHandler<EditDoctorCommand
                 Email = updatedDoctor.Email,
                 PhotoUrl = updatedDoctor.PhotoUrl,
                 CareerStartYear = updatedDoctor.CareerStartYear,
+                SpecializationId = updatedDoctor.SpecializationId,
                 Status = updatedDoctor.Status
             };
 
@@ -67,4 +84,3 @@ public sealed class EditDoctorCommandHandler : IRequestHandler<EditDoctorCommand
         }
     }
 }
-

@@ -1,4 +1,5 @@
 using MediatR;
+using Services.Profiles.Application.Common.Exceptions;
 using Services.Profiles.Application.Common.Interfaces;
 using Services.Profiles.Application.Common.Persistence;
 using Services.Profiles.Application.Features.Doctors.Events;
@@ -9,21 +10,36 @@ namespace Services.Profiles.Application.Features.Doctors.Commands.Create;
 public sealed class CreateDoctorCommandHandler : IRequestHandler<CreateDoctorCommand, Guid>
 {
     private readonly IDoctorWriteRepository _doctorRepository;
+    private readonly ISpecializationRepository _specializationRepository;
     private readonly IOutboxService _outboxService;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateDoctorCommandHandler(
         IDoctorWriteRepository doctorRepository,
+        ISpecializationRepository specializationRepository,
         IOutboxService outboxService,
         IUnitOfWork unitOfWork)
     {
         _doctorRepository = doctorRepository;
+        _specializationRepository = specializationRepository;
         _outboxService = outboxService;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<Guid> Handle(CreateDoctorCommand request, CancellationToken cancellationToken)
     {
+        // Validate that the specialization exists
+        var specializationExists = await _specializationRepository.ExistsAsync(
+            request.SpecializationId, 
+            cancellationToken);
+
+        if (!specializationExists)
+        {
+            throw new NotFoundException(
+                nameof(Specialization), 
+                request.SpecializationId.ToString());
+        }
+
         var doctor = Doctor.Create(
             firstName: request.FirstName,
             lastName: request.LastName,
@@ -31,7 +47,8 @@ public sealed class CreateDoctorCommandHandler : IRequestHandler<CreateDoctorCom
             dateOfBirth: request.DateOfBirth,
             email: request.Email,
             photoUrl: request.PhotoUrl,
-            careerStartYear: request.CareerStartYear);
+            careerStartYear: request.CareerStartYear,
+            specializationId: request.SpecializationId);
 
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
@@ -49,6 +66,7 @@ public sealed class CreateDoctorCommandHandler : IRequestHandler<CreateDoctorCom
                 Email = doctor.Email,
                 PhotoUrl = doctor.PhotoUrl,
                 CareerStartYear = doctor.CareerStartYear,
+                SpecializationId = doctor.SpecializationId,
                 Status = doctor.Status
             };
 
@@ -65,4 +83,3 @@ public sealed class CreateDoctorCommandHandler : IRequestHandler<CreateDoctorCom
         }
     }
 }
-

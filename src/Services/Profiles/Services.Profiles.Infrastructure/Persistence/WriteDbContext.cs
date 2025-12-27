@@ -15,6 +15,8 @@ public sealed class WriteDbContext : DbContext, IUnitOfWork
     }
 
     public DbSet<Doctor> Doctors => Set<Doctor>();
+    public DbSet<Specialization> Specializations => Set<Specialization>();
+    public DbSet<Service> Services => Set<Service>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -56,4 +58,3 @@ public sealed class WriteDbContext : DbContext, IUnitOfWork
         _currentTransaction = null;
     }
 }
-

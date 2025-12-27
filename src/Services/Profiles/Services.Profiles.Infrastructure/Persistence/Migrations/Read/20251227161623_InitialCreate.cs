@@ -27,7 +27,10 @@ namespace Services.Profiles.Infrastructure.Persistence.Migrations.Read
                     Email = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
                     PhotoUrl = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     CareerStartYear = table.Column<int>(type: "integer", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: false)
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    SpecializationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SpecializationName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Services = table.Column<string[]>(type: "text[]", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -39,6 +42,18 @@ namespace Services.Profiles.Infrastructure.Persistence.Migrations.Read
                 schema: "read",
                 table: "Doctors",
                 columns: new[] { "LastName", "FirstName" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Doctors_SpecializationId",
+                schema: "read",
+                table: "Doctors",
+                column: "SpecializationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Doctors_SpecializationName",
+                schema: "read",
+                table: "Doctors",
+                column: "SpecializationName");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Doctors_Status",

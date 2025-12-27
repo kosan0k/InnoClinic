@@ -25,8 +25,8 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
         builder.Property(o => o.Error)
             .HasMaxLength(2000);
 
+        // Use quoted column names for PostgreSQL compatibility
         builder.HasIndex(x => new { x.ProcessedOn, x.OccurredOn })
-           .HasFilter($"{nameof(OutboxMessage.ProcessedOn)} IS NULL");
+           .HasFilter("\"ProcessedOn\" IS NULL");
     }
 }
-

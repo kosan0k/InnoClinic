@@ -11,5 +11,6 @@ public sealed record DoctorListItemVm
     public string? PhotoUrl { get; init; }
     public required int Experience { get; init; }
     public required DoctorStatus Status { get; init; }
+    public required string SpecializationName { get; init; }
+    public required IReadOnlyList<string> Services { get; init; }
 }
-

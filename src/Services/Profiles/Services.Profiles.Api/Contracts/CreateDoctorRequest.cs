@@ -9,5 +9,5 @@ public sealed record CreateDoctorRequest
     public required string Email { get; init; }
     public string? PhotoUrl { get; init; }
     public required int CareerStartYear { get; init; }
+    public required Guid SpecializationId { get; init; }
 }
-

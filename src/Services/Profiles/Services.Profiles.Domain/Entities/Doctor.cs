@@ -22,6 +22,17 @@ public record Doctor
 
     public DoctorStatus Status { get; init; } = DoctorStatus.AtWork;
 
+    /// <summary>
+    /// Foreign key to the Specialization entity.
+    /// </summary>
+    public Guid SpecializationId { get; init; }
+
+    /// <summary>
+    /// Navigation property to the Specialization entity.
+    /// Used for loading specialization details when needed.
+    /// </summary>
+    public Specialization? Specialization { get; init; }
+
     public static Doctor Create(
         string firstName,
         string lastName,
@@ -30,6 +41,7 @@ public record Doctor
         string email,
         string? photoUrl,
         int careerStartYear,
+        Guid specializationId,
         DoctorStatus status = DoctorStatus.AtWork)
     {
         return new Doctor
@@ -42,6 +54,7 @@ public record Doctor
             Email = email,
             PhotoUrl = photoUrl,
             CareerStartYear = careerStartYear,
+            SpecializationId = specializationId,
             Status = status
         };
     }
@@ -58,6 +71,7 @@ public record Doctor
         DateTime dateOfBirth,
         string? photoUrl,
         int careerStartYear,
+        Guid specializationId,
         DoctorStatus status)
     {
         return this with
@@ -68,6 +82,7 @@ public record Doctor
             DateOfBirth = dateOfBirth,
             PhotoUrl = photoUrl,
             CareerStartYear = careerStartYear,
+            SpecializationId = specializationId,
             Status = status
         };
     }

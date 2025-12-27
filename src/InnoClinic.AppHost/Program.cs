@@ -10,8 +10,8 @@ var redis = builder.AddRedis("redis")
 // Define the PostgreSQL Server and a specific database for Keycloak
 var postgresImportPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "PostgresConfiguration");
 var postgres = builder.AddPostgres("postgres")
-    .WithDataVolume() // Persist data between restarts
-    .WithPgAdmin()   // Optional: Adds a UI to manage the DB
+    .WithDataVolume("innoclinic-postgres-data") // Persist data between restarts
+    .WithPgAdmin(pgAdmin => pgAdmin.WithLifetime(ContainerLifetime.Persistent))   // Optional: Adds a UI to manage the DB
     .WithBindMount(postgresImportPath, "/docker-entrypoint-initdb.d") // Mount the init script folder into the container
     .WithLifetime(ContainerLifetime.Persistent); 
 
