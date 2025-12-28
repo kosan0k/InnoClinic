@@ -73,9 +73,8 @@ public static class DependencyInjection
     private static IServiceCollection AddOutboxServices(this IServiceCollection services)
     {
         // OutboxNotifier must be singleton - shared between OutboxService and OutboxProcessor
-        // for the notification channel to work
-        services.AddSingleton<OutboxNotifier>();
-        services.AddSingleton<IOutboxNotifier>(sp => sp.GetRequiredService<OutboxNotifier>());
+        // for the reactive notification stream to work
+        services.AddSingleton<IOutboxNotifier, OutboxNotifier>();
         
         services.AddScoped<IOutboxService, OutboxService>();
         services.AddHostedService<OutboxProcessor>();        

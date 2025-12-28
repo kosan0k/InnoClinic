@@ -1,20 +1,24 @@
+using System.Collections.Concurrent;
+using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
+using RxUnit = System.Reactive.Unit;
+using System.Text.Json;
 using CSharpFunctionalExtensions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Services.Profiles.Application.Common.Interfaces;
 using Services.Profiles.Domain.Entities;
 using Services.Profiles.Infrastructure.Persistence;
-using System.Collections.Concurrent;
-using System.Text.Json;
 
 namespace Services.Profiles.Infrastructure.Services;
 
 public sealed class OutboxProcessor : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly OutboxNotifier _notifier;
+    private readonly IOutboxNotifier _notifier;
     private readonly ILogger<OutboxProcessor> _logger;
     private static readonly ConcurrentDictionary<string, Type> _typeCache = new();
 
@@ -26,7 +30,7 @@ public sealed class OutboxProcessor : BackgroundService
 
     public OutboxProcessor(
         IServiceScopeFactory scopeFactory,
-        OutboxNotifier notifier,
+        IOutboxNotifier notifier,
         ILogger<OutboxProcessor> logger)
     {
         _scopeFactory = scopeFactory;
@@ -134,35 +138,32 @@ public sealed class OutboxProcessor : BackgroundService
     }
 
     /// <summary>
-    /// Wraps the waiting logic. 
+    /// Waits for a notification signal or timeout using reactive extensions.
     /// Returns Success when signal received OR timeout occurs (both are valid flow states).
-    /// Returns Failure only if the channel reader itself crashes (unlikely).
+    /// Returns Failure only if an unexpected error occurs.
     /// </summary>
     private async ValueTask<UnitResult<Exception>> WaitForSignalOrTimeoutAsync(CancellationToken ct)
     {
-        UnitResult<Exception> result;
-
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(_pollingInterval);
-
         try
         {
-            await _notifier.Reader.WaitToReadAsync(cts.Token);
-            _notifier.Reader.TryRead(out _);
+            // Use Observable.Amb to race between notification and timeout
+            // First one to emit wins - either we get a notification or the timeout fires
+            await _notifier.Notifications
+                .Amb(Observable.Timer(_pollingInterval).Select(_ => RxUnit.Default))
+                .FirstAsync()
+                .ToTask(ct);
 
-            result = UnitResult.Success<Exception>();
+            return UnitResult.Success<Exception>();
         }
         catch (OperationCanceledException)
         {
-            // Timeout is not an error; it's a valid "Wait Finished" state.
-            result = UnitResult.Success<Exception>();
+            // Cancellation is not an error; it's a valid shutdown signal
+            return UnitResult.Success<Exception>();
         }
         catch (Exception ex)
         {
-            result = ex;
+            return ex;
         }
-
-        return result;
     }
 
     /// <summary>
@@ -268,4 +269,3 @@ public sealed class OutboxProcessor : BackgroundService
         };
     }
 }
-

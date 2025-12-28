@@ -1,13 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Services.Profiles.Application.Common.Interfaces;
 using Services.Profiles.Domain.Entities;
-using Services.Profiles.Infrastructure.Services;
 
 namespace Services.Profiles.Infrastructure.Persistence.Interceptors;
 
-public class OutboxInsertInterceptor(OutboxNotifier notifier) : SaveChangesInterceptor
+public class OutboxInsertInterceptor(IOutboxNotifier notifier) : SaveChangesInterceptor
 {
-    private readonly OutboxNotifier _notifier = notifier;
+    private readonly IOutboxNotifier _notifier = notifier;
     private bool _hasNewOutboxMessages;
 
     public override ValueTask<InterceptionResult<int>> SavingChangesAsync(

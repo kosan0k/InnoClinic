@@ -1,3 +1,5 @@
+using System.Reactive;
+
 namespace Services.Profiles.Application.Common.Interfaces;
 
 /// <summary>
@@ -10,5 +12,10 @@ public interface IOutboxNotifier
     /// Signals that a new outbox message has been added and should be processed.
     /// </summary>
     void NotifyNewMessage();
-}
 
+    /// <summary>
+    /// Observable stream of notifications that signals when new outbox messages are available.
+    /// Subscribers can await notifications to process messages immediately.
+    /// </summary>
+    IObservable<Unit> Notifications { get; }
+}
