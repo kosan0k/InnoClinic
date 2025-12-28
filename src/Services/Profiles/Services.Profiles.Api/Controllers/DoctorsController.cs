@@ -4,6 +4,7 @@ using Services.Profiles.Api.Contracts;
 using Services.Profiles.Application.Features.Doctors.Commands.ChangeStatus;
 using Services.Profiles.Application.Features.Doctors.Commands.Create;
 using Services.Profiles.Application.Features.Doctors.Commands.Edit;
+using Services.Profiles.Application.Features.Doctors.Commands.SoftDelete;
 using Services.Profiles.Application.Features.Doctors.Queries.GetDoctorProfile;
 using Services.Profiles.Application.Features.Doctors.Queries.GetDoctorsList;
 
@@ -128,6 +129,26 @@ public sealed class DoctorsController : ControllerBase
         {
             DoctorId = id,
             NewStatus = request.Status
+        };
+
+        await _sender.Send(command, cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Soft delete a doctor
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var command = new SoftDeleteDoctorCommand
+        {
+            DoctorId = id
         };
 
         await _sender.Send(command, cancellationToken);

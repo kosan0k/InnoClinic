@@ -7,7 +7,8 @@ namespace Services.Profiles.Application.Features.Doctors.EventHandlers;
 public class DoctorProjectionHandlers :
     INotificationHandler<DoctorCreatedEvent>,
     INotificationHandler<DoctorUpdatedEvent>,
-    INotificationHandler<DoctorStatusChangedEvent>
+    INotificationHandler<DoctorStatusChangedEvent>,
+    INotificationHandler<DoctorDeletedEvent>
 {
     private readonly IDoctorProjectionWriter _writer;
     private readonly ISpecializationRepository _specializationRepository;
@@ -82,5 +83,10 @@ public class DoctorProjectionHandlers :
     public async Task Handle(DoctorStatusChangedEvent notification, CancellationToken ct)
     {
         await _writer.UpdateStatusAsync(notification.DoctorId, notification.NewStatus, ct);
+    }
+
+    public async Task Handle(DoctorDeletedEvent notification, CancellationToken ct)
+    {
+        await _writer.DeleteAsync(notification.DoctorId, ct);
     }
 }

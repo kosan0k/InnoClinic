@@ -23,6 +23,11 @@ public record Doctor
     public DoctorStatus Status { get; init; } = DoctorStatus.AtWork;
 
     /// <summary>
+    /// Indicates whether the doctor has been soft deleted.
+    /// </summary>
+    public bool IsDeleted { get; init; }
+
+    /// <summary>
     /// Foreign key to the Specialization entity.
     /// </summary>
     public Guid SpecializationId { get; init; }
@@ -85,5 +90,10 @@ public record Doctor
             SpecializationId = specializationId,
             Status = status
         };
+    }
+
+    public Doctor MarkAsDeleted()
+    {
+        return this with { IsDeleted = true };
     }
 }

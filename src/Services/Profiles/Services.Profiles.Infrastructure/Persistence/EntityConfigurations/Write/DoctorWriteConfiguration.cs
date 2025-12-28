@@ -40,8 +40,15 @@ public sealed class DoctorWriteConfiguration : IEntityTypeConfiguration<Doctor>
             .IsRequired()
             .HasConversion<int>();
 
+        builder.Property(d => d.IsDeleted)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(d => d.SpecializationId)
             .IsRequired();
+
+        // Global query filter to exclude soft-deleted doctors
+        builder.HasQueryFilter(d => !d.IsDeleted);
 
         // Configure relationship with Specialization
         builder.HasOne(d => d.Specialization)

@@ -53,4 +53,9 @@ public interface IDoctorProjectionWriter
     /// Partial update for status changes only.
     /// </summary>
     Task UpdateStatusAsync(Guid id, DoctorStatus status, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Removes the doctor projection from the read database (used for soft delete).
+    /// </summary>
+    Task DeleteAsync(Guid id, CancellationToken cancellationToken);
 }

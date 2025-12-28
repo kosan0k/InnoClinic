@@ -112,4 +112,11 @@ public class DoctorProjectionWriter : IDoctorProjectionWriter
             .Where(d => d.Id == id)
             .ExecuteUpdateAsync(calls => calls.SetProperty(d => d.Status, status), ct);
     }
+
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        await _context.Doctors
+            .Where(d => d.Id == id)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
 }

@@ -15,7 +15,11 @@ public sealed class DoctorWriteRepository : IDoctorWriteRepository
 
     public async Task<Doctor?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        // Note: IsDeleted filter is applied automatically via global query filter
+        // AsNoTracking is used because Doctor is an immutable record - updates create new instances
+        // which would conflict with tracked entities when calling Update()
         return await _context.Doctors
+            .AsNoTracking()
             .FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
     }
 
