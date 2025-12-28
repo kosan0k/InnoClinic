@@ -147,7 +147,9 @@ public sealed class OutboxProcessor : BackgroundService
 
         try
         {
-            await _notifier.Reader.ReadAsync(cts.Token);
+            await _notifier.Reader.WaitToReadAsync(cts.Token);
+            _notifier.Reader.TryRead(out _);
+
             result = UnitResult.Success<Exception>();
         }
         catch (OperationCanceledException)
