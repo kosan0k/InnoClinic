@@ -1,8 +1,9 @@
-﻿using MediatR;
+﻿using CSharpFunctionalExtensions;
+using MediatR;
 
 namespace Services.Profiles.Application.Features.Doctors.Commands.Create;
 
-public sealed record CreateDoctorCommand : IRequest<Guid>
+public sealed record CreateDoctorCommand : IRequest<Result<Guid, Exception>>
 {
     public required string FirstName { get; init; }
     public required string LastName { get; init; }

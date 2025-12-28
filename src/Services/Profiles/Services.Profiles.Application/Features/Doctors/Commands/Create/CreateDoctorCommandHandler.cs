@@ -1,3 +1,4 @@
+using CSharpFunctionalExtensions;
 using MediatR;
 using Services.Profiles.Application.Common.Exceptions;
 using Services.Profiles.Application.Common.Interfaces;
@@ -7,7 +8,7 @@ using Services.Profiles.Domain.Entities;
 
 namespace Services.Profiles.Application.Features.Doctors.Commands.Create;
 
-public sealed class CreateDoctorCommandHandler : IRequestHandler<CreateDoctorCommand, Guid>
+public sealed class CreateDoctorCommandHandler : IRequestHandler<CreateDoctorCommand, Result<Guid, Exception>>
 {
     private readonly IDoctorWriteRepository _doctorRepository;
     private readonly ISpecializationRepository _specializationRepository;
@@ -26,60 +27,66 @@ public sealed class CreateDoctorCommandHandler : IRequestHandler<CreateDoctorCom
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Guid> Handle(CreateDoctorCommand request, CancellationToken cancellationToken)
+    public async Task<Result<Guid, Exception>> Handle(CreateDoctorCommand request, CancellationToken cancellationToken)
     {
-        // Validate that the specialization exists
-        var specializationExists = await _specializationRepository.ExistsAsync(
-            request.SpecializationId, 
-            cancellationToken);
-
-        if (!specializationExists)
-        {
-            throw new NotFoundException(
-                nameof(Specialization), 
-                request.SpecializationId.ToString());
-        }
-
-        var doctor = Doctor.Create(
-            firstName: request.FirstName,
-            lastName: request.LastName,
-            middleName: request.MiddleName,
-            dateOfBirth: request.DateOfBirth,
-            email: request.Email,
-            photoUrl: request.PhotoUrl,
-            careerStartYear: request.CareerStartYear,
-            specializationId: request.SpecializationId);
-
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
-
         try
         {
-            await _doctorRepository.AddAsync(doctor, cancellationToken);
+            // Validate that the specialization exists
+            var specializationExists = await _specializationRepository.ExistsAsync(
+                request.SpecializationId, 
+                cancellationToken);
 
-            var domainEvent = new DoctorCreatedEvent
+            if (!specializationExists)
             {
-                DoctorId = doctor.Id,
-                FirstName = doctor.FirstName,
-                LastName = doctor.LastName,
-                MiddleName = doctor.MiddleName,
-                DateOfBirth = doctor.DateOfBirth,
-                Email = doctor.Email,
-                PhotoUrl = doctor.PhotoUrl,
-                CareerStartYear = doctor.CareerStartYear,
-                SpecializationId = doctor.SpecializationId,
-                Status = doctor.Status
-            };
+                return Result.Failure<Guid, Exception>(
+                    new NotFoundException(nameof(Specialization), request.SpecializationId.ToString()));
+            }
 
-            await _outboxService.AddMessageAsync(domainEvent, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            var doctor = Doctor.Create(
+                firstName: request.FirstName,
+                lastName: request.LastName,
+                middleName: request.MiddleName,
+                dateOfBirth: request.DateOfBirth,
+                email: request.Email,
+                photoUrl: request.PhotoUrl,
+                careerStartYear: request.CareerStartYear,
+                specializationId: request.SpecializationId);
 
-            return doctor.Id;
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                await _doctorRepository.AddAsync(doctor, cancellationToken);
+
+                var domainEvent = new DoctorCreatedEvent
+                {
+                    DoctorId = doctor.Id,
+                    FirstName = doctor.FirstName,
+                    LastName = doctor.LastName,
+                    MiddleName = doctor.MiddleName,
+                    DateOfBirth = doctor.DateOfBirth,
+                    Email = doctor.Email,
+                    PhotoUrl = doctor.PhotoUrl,
+                    CareerStartYear = doctor.CareerStartYear,
+                    SpecializationId = doctor.SpecializationId,
+                    Status = doctor.Status
+                };
+
+                await _outboxService.AddMessageAsync(domainEvent, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                return Result.Success<Guid, Exception>(doctor.Id);
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return Result.Failure<Guid, Exception>(ex);
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            throw;
+            return Result.Failure<Guid, Exception>(ex);
         }
     }
 }

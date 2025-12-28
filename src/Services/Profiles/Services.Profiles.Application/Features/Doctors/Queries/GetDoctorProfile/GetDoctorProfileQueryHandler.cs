@@ -1,9 +1,12 @@
+using CSharpFunctionalExtensions;
 using MediatR;
+using Services.Profiles.Application.Common.Exceptions;
 using Services.Profiles.Application.Common.Persistence;
+using Services.Profiles.Domain.Entities;
 
 namespace Services.Profiles.Application.Features.Doctors.Queries.GetDoctorProfile;
 
-public sealed class GetDoctorProfileQueryHandler : IRequestHandler<GetDoctorProfileQuery, DoctorProfileVm?>
+public sealed class GetDoctorProfileQueryHandler : IRequestHandler<GetDoctorProfileQuery, Result<DoctorProfileVm, Exception>>
 {
     private readonly IDoctorReadRepository _doctorReadRepository;
 
@@ -12,8 +15,23 @@ public sealed class GetDoctorProfileQueryHandler : IRequestHandler<GetDoctorProf
         _doctorReadRepository = doctorReadRepository;
     }
 
-    public async Task<DoctorProfileVm?> Handle(GetDoctorProfileQuery request, CancellationToken cancellationToken)
+    public async Task<Result<DoctorProfileVm, Exception>> Handle(GetDoctorProfileQuery request, CancellationToken cancellationToken)
     {
-        return await _doctorReadRepository.GetByIdAsync(request.DoctorId, cancellationToken);
+        try
+        {
+            var doctor = await _doctorReadRepository.GetByIdAsync(request.DoctorId, cancellationToken);
+
+            if (doctor is null)
+            {
+                return Result.Failure<DoctorProfileVm, Exception>(
+                    new NotFoundException(nameof(Doctor), request.DoctorId));
+            }
+
+            return Result.Success<DoctorProfileVm, Exception>(doctor);
+        }
+        catch (Exception ex)
+        {
+            return Result.Failure<DoctorProfileVm, Exception>(ex);
+        }
     }
 }

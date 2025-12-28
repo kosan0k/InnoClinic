@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Services.Profiles.Api.Contracts;
+using Services.Profiles.Application.Common.Exceptions;
 using Services.Profiles.Application.Features.Doctors.Commands.ChangeStatus;
 using Services.Profiles.Application.Features.Doctors.Commands.Create;
 using Services.Profiles.Application.Features.Doctors.Commands.Edit;
@@ -26,13 +27,19 @@ public sealed class DoctorsController : ControllerBase
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<DoctorListItemVm>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IReadOnlyList<DoctorListItemVm>>> GetAll(
         CancellationToken cancellationToken)
     {
         var query = new GetDoctorsListQuery();
         var result = await _sender.Send(query, cancellationToken);
 
-        return Ok(result);
+        if (result.IsFailure)
+        {
+            return HandleError(result.Error);
+        }
+
+        return Ok(result.Value);
     }
 
     /// <summary>
@@ -41,6 +48,7 @@ public sealed class DoctorsController : ControllerBase
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(DoctorProfileVm), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<DoctorProfileVm>> GetById(
         Guid id,
         CancellationToken cancellationToken)
@@ -48,12 +56,12 @@ public sealed class DoctorsController : ControllerBase
         var query = new GetDoctorProfileQuery { DoctorId = id };
         var result = await _sender.Send(query, cancellationToken);
 
-        if (result is null)
+        if (result.IsFailure)
         {
-            return NotFound();
+            return HandleError(result.Error);
         }
 
-        return Ok(result);
+        return Ok(result.Value);
     }
 
     /// <summary>
@@ -62,6 +70,7 @@ public sealed class DoctorsController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<Guid>> Create(
         [FromBody] CreateDoctorRequest request,
         CancellationToken cancellationToken)
@@ -78,9 +87,14 @@ public sealed class DoctorsController : ControllerBase
             SpecializationId = request.SpecializationId
         };
 
-        var doctorId = await _sender.Send(command, cancellationToken);
+        var result = await _sender.Send(command, cancellationToken);
 
-        return CreatedAtAction(nameof(GetById), new { id = doctorId }, doctorId);
+        if (result.IsFailure)
+        {
+            return HandleError(result.Error);
+        }
+
+        return CreatedAtAction(nameof(GetById), new { id = result.Value }, result.Value);
     }
 
     /// <summary>
@@ -108,7 +122,12 @@ public sealed class DoctorsController : ControllerBase
             Status = request.Status
         };
 
-        await _sender.Send(command, cancellationToken);
+        var result = await _sender.Send(command, cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return HandleError(result.Error);
+        }
 
         return NoContent();
     }
@@ -131,7 +150,12 @@ public sealed class DoctorsController : ControllerBase
             NewStatus = request.Status
         };
 
-        await _sender.Send(command, cancellationToken);
+        var result = await _sender.Send(command, cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return HandleError(result.Error);
+        }
 
         return NoContent();
     }
@@ -151,8 +175,22 @@ public sealed class DoctorsController : ControllerBase
             DoctorId = id
         };
 
-        await _sender.Send(command, cancellationToken);
+        var result = await _sender.Send(command, cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return HandleError(result.Error);
+        }
 
         return NoContent();
+    }
+
+    private ActionResult HandleError(Exception error)
+    {
+        return error switch
+        {
+            NotFoundException notFoundEx => NotFound(notFoundEx.Message),
+            _ => BadRequest(error.Message)
+        };
     }
 }

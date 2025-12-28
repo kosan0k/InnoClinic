@@ -1,3 +1,4 @@
+using CSharpFunctionalExtensions;
 using MediatR;
 using Services.Profiles.Application.Common.Exceptions;
 using Services.Profiles.Application.Common.Interfaces;
@@ -7,7 +8,7 @@ using Services.Profiles.Domain.Entities;
 
 namespace Services.Profiles.Application.Features.Doctors.Commands.SoftDelete;
 
-public sealed class SoftDeleteDoctorCommandHandler : IRequestHandler<SoftDeleteDoctorCommand>
+public sealed class SoftDeleteDoctorCommandHandler : IRequestHandler<SoftDeleteDoctorCommand, UnitResult<Exception>>
 {
     private readonly IDoctorWriteRepository _doctorRepository;
     private readonly IOutboxService _outboxService;
@@ -23,32 +24,45 @@ public sealed class SoftDeleteDoctorCommandHandler : IRequestHandler<SoftDeleteD
         _unitOfWork = unitOfWork;
     }
 
-    public async Task Handle(SoftDeleteDoctorCommand request, CancellationToken cancellationToken)
+    public async Task<UnitResult<Exception>> Handle(SoftDeleteDoctorCommand request, CancellationToken cancellationToken)
     {
-        var doctor = await _doctorRepository.GetByIdAsync(request.DoctorId, cancellationToken)
-            ?? throw new NotFoundException(nameof(Doctor), request.DoctorId);
-
-        var deletedDoctor = doctor.MarkAsDeleted();
-
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
-
         try
         {
-            _doctorRepository.Update(deletedDoctor);
-
-            var domainEvent = new DoctorDeletedEvent
+            var doctor = await _doctorRepository.GetByIdAsync(request.DoctorId, cancellationToken);
+            
+            if (doctor is null)
             {
-                DoctorId = deletedDoctor.Id
-            };
+                return new NotFoundException(nameof(Doctor), request.DoctorId);
+            }
 
-            await _outboxService.AddMessageAsync(domainEvent, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            var deletedDoctor = doctor.MarkAsDeleted();
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                _doctorRepository.Update(deletedDoctor);
+
+                var domainEvent = new DoctorDeletedEvent
+                {
+                    DoctorId = deletedDoctor.Id
+                };
+
+                await _outboxService.AddMessageAsync(domainEvent, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                return UnitResult.Success<Exception>();
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return UnitResult.Failure(ex);
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            throw;
+            return UnitResult.Failure(ex);
         }
     }
 }

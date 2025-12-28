@@ -1,9 +1,10 @@
-﻿using MediatR;
+﻿using CSharpFunctionalExtensions;
+using MediatR;
 using Services.Profiles.Domain.Enums;
 
 namespace Services.Profiles.Application.Features.Doctors.Commands.Edit;
 
-public sealed record EditDoctorCommand : IRequest
+public sealed record EditDoctorCommand : IRequest<UnitResult<Exception>>
 {
     public required Guid Id { get; init; }
     public required string FirstName { get; init; }
