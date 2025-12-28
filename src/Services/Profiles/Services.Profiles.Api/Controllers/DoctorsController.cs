@@ -1,3 +1,4 @@
+using CSharpFunctionalExtensions;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Services.Profiles.Api.Contracts;
@@ -32,14 +33,11 @@ public sealed class DoctorsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var query = new GetDoctorsListQuery();
-        var result = await _sender.Send(query, cancellationToken);
+        var result = await _sender.Send(query, cancellationToken);        
 
-        if (result.IsFailure)
-        {
-            return HandleError(result.Error);
-        }
-
-        return Ok(result.Value);
+        return result.IsSuccess
+            ? Ok(result.Value) 
+            : HandleError(result.Error);
     }
 
     /// <summary>
@@ -56,12 +54,9 @@ public sealed class DoctorsController : ControllerBase
         var query = new GetDoctorProfileQuery { DoctorId = id };
         var result = await _sender.Send(query, cancellationToken);
 
-        if (result.IsFailure)
-        {
-            return HandleError(result.Error);
-        }
-
-        return Ok(result.Value);
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : HandleError(result.Error);
     }
 
     /// <summary>
@@ -89,12 +84,9 @@ public sealed class DoctorsController : ControllerBase
 
         var result = await _sender.Send(command, cancellationToken);
 
-        if (result.IsFailure)
-        {
-            return HandleError(result.Error);
-        }
-
-        return CreatedAtAction(nameof(GetById), new { id = result.Value }, result.Value);
+        return result.IsSuccess
+            ? CreatedAtAction(nameof(GetById), new { id = result.Value }, result.Value)
+            : HandleError(result.Error);
     }
 
     /// <summary>
@@ -124,12 +116,9 @@ public sealed class DoctorsController : ControllerBase
 
         var result = await _sender.Send(command, cancellationToken);
 
-        if (result.IsFailure)
-        {
-            return HandleError(result.Error);
-        }
-
-        return NoContent();
+        return result.IsSuccess
+            ? NoContent()
+            : HandleError(result.Error);
     }
 
     /// <summary>
@@ -152,12 +141,9 @@ public sealed class DoctorsController : ControllerBase
 
         var result = await _sender.Send(command, cancellationToken);
 
-        if (result.IsFailure)
-        {
-            return HandleError(result.Error);
-        }
-
-        return NoContent();
+        return result.IsSuccess
+            ? NoContent()
+            : HandleError(result.Error);
     }
 
     /// <summary>
@@ -177,12 +163,9 @@ public sealed class DoctorsController : ControllerBase
 
         var result = await _sender.Send(command, cancellationToken);
 
-        if (result.IsFailure)
-        {
-            return HandleError(result.Error);
-        }
-
-        return NoContent();
+        return result.IsSuccess
+            ? NoContent()
+            : HandleError(result.Error);
     }
 
     private ActionResult HandleError(Exception error)
