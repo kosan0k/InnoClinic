@@ -13,15 +13,18 @@ public sealed class SoftDeleteDoctorCommandHandler : IRequestHandler<SoftDeleteD
     private readonly IDoctorWriteRepository _doctorRepository;
     private readonly IOutboxService _outboxService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly TimeProvider _timeProvider;
 
     public SoftDeleteDoctorCommandHandler(
         IDoctorWriteRepository doctorRepository,
         IOutboxService outboxService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        TimeProvider timeProvider)
     {
         _doctorRepository = doctorRepository;
         _outboxService = outboxService;
         _unitOfWork = unitOfWork;
+        _timeProvider = timeProvider;
     }
 
     public async Task<UnitResult<Exception>> Handle(SoftDeleteDoctorCommand request, CancellationToken cancellationToken)
@@ -35,17 +38,17 @@ public sealed class SoftDeleteDoctorCommandHandler : IRequestHandler<SoftDeleteD
                 return new NotFoundException(nameof(Doctor), request.DoctorId);
             }
 
-            var deletedDoctor = doctor.MarkAsDeleted();
-
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                _doctorRepository.Update(deletedDoctor);
+                // Use Remove - the SoftDeleteInterceptor will convert this to a soft delete
+                _doctorRepository.Remove(doctor);
 
                 var domainEvent = new DoctorDeletedEvent
                 {
-                    DoctorId = deletedDoctor.Id
+                    OccurredOn = _timeProvider.GetUtcNow().UtcDateTime,
+                    DoctorId = doctor.Id
                 };
 
                 await _outboxService.AddMessageAsync(domainEvent, cancellationToken);
@@ -66,4 +69,3 @@ public sealed class SoftDeleteDoctorCommandHandler : IRequestHandler<SoftDeleteD
         }
     }
 }
-

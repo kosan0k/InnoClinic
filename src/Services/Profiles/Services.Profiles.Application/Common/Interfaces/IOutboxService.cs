@@ -4,6 +4,6 @@ namespace Services.Profiles.Application.Common.Interfaces;
 
 public interface IOutboxService
 {
-    Task AddMessageAsync(IIntegrationEvent integrationEvent, CancellationToken cancellationToken = default);
+    Task AddMessageAsync(ISyncEvent integrationEvent, CancellationToken cancellationToken = default);
 }
 

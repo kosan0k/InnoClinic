@@ -10,7 +10,7 @@ public sealed class OutboxService(WriteDbContext context) : IOutboxService
 {
     private readonly WriteDbContext _context = context;
 
-    public async Task AddMessageAsync(IIntegrationEvent integrationEvent, CancellationToken cancellationToken = default)
+    public async Task AddMessageAsync(ISyncEvent integrationEvent, CancellationToken cancellationToken = default)
     {
         var outboxMessage = new OutboxMessage
         {

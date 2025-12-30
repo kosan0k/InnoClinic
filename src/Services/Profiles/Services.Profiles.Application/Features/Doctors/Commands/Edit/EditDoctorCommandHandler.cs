@@ -14,17 +14,20 @@ public sealed class EditDoctorCommandHandler : IRequestHandler<EditDoctorCommand
     private readonly ISpecializationRepository _specializationRepository;
     private readonly IOutboxService _outboxService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly TimeProvider _timeProvider;
 
     public EditDoctorCommandHandler(
         IDoctorWriteRepository doctorRepository,
         ISpecializationRepository specializationRepository,
         IOutboxService outboxService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        TimeProvider timeProvider)
     {
         _doctorRepository = doctorRepository;
         _specializationRepository = specializationRepository;
         _outboxService = outboxService;
         _unitOfWork = unitOfWork;
+        _timeProvider = timeProvider;
     }
 
     public async Task<UnitResult<Exception>> Handle(EditDoctorCommand request, CancellationToken cancellationToken)
@@ -67,6 +70,7 @@ public sealed class EditDoctorCommandHandler : IRequestHandler<EditDoctorCommand
 
                 var domainEvent = new DoctorUpdatedEvent
                 {
+                    OccurredOn = _timeProvider.GetUtcNow().UtcDateTime,
                     DoctorId = updatedDoctor.Id,
                     FirstName = updatedDoctor.FirstName,
                     LastName = updatedDoctor.LastName,

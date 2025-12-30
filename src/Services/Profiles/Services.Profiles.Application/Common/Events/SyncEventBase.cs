@@ -1,9 +1,8 @@
 namespace Services.Profiles.Application.Common.Events;
 
-public abstract record IntegrationEventBase : IIntegrationEvent
+public abstract record SyncEventBase : ISyncEvent
 {
     public Guid EventId { get; init; } = Guid.NewGuid();
-    public DateTime OccurredOn { get; init; } = DateTime.UtcNow;
+    public required DateTime OccurredOn { get; init; }
     public abstract string EventType { get; }
 }
-

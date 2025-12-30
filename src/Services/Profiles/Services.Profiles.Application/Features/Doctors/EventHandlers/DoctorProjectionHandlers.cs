@@ -37,20 +37,23 @@ public class DoctorProjectionHandlers :
             .Select(s => s.Name)
             .ToList();
 
-        await _writer.CreateAsync(
-            id: notification.DoctorId,
-            firstName: notification.FirstName,
-            lastName: notification.LastName,
-            middleName: notification.MiddleName,
-            dateOfBirth: notification.DateOfBirth,
-            email: notification.Email,
-            photoUrl: notification.PhotoUrl,
-            careerStartYear: notification.CareerStartYear,
-            status: notification.Status,
-            specializationId: notification.SpecializationId,
-            specializationName: specialization.Name,
-            services: serviceNames,
-            cancellationToken: ct);
+        var projectionData = new DoctorProjectionData
+        {
+            Id = notification.DoctorId,
+            FirstName = notification.FirstName,
+            LastName = notification.LastName,
+            MiddleName = notification.MiddleName,
+            DateOfBirth = notification.DateOfBirth,
+            Email = notification.Email,
+            PhotoUrl = notification.PhotoUrl,
+            CareerStartYear = notification.CareerStartYear,
+            Status = notification.Status,
+            SpecializationId = notification.SpecializationId,
+            SpecializationName = specialization.Name,
+            Services = serviceNames
+        };
+
+        await _writer.CreateAsync(projectionData, ct);
     }
 
     public async Task Handle(DoctorUpdatedEvent notification, CancellationToken ct)
@@ -64,20 +67,23 @@ public class DoctorProjectionHandlers :
             .Select(s => s.Name)
             .ToList();
 
-        await _writer.UpdateAsync(
-            id: notification.DoctorId,
-            firstName: notification.FirstName,
-            lastName: notification.LastName,
-            middleName: notification.MiddleName,
-            dateOfBirth: notification.DateOfBirth,
-            email: notification.Email,
-            photoUrl: notification.PhotoUrl,
-            careerStartYear: notification.CareerStartYear,
-            status: notification.Status,
-            specializationId: notification.SpecializationId,
-            specializationName: specialization.Name,
-            services: serviceNames,
-            cancellationToken: ct);
+        var projectionData = new DoctorProjectionData
+        {
+            Id = notification.DoctorId,
+            FirstName = notification.FirstName,
+            LastName = notification.LastName,
+            MiddleName = notification.MiddleName,
+            DateOfBirth = notification.DateOfBirth,
+            Email = notification.Email,
+            PhotoUrl = notification.PhotoUrl,
+            CareerStartYear = notification.CareerStartYear,
+            Status = notification.Status,
+            SpecializationId = notification.SpecializationId,
+            SpecializationName = specialization.Name,
+            Services = serviceNames
+        };
+
+        await _writer.UpdateAsync(projectionData, ct);
     }
 
     public async Task Handle(DoctorStatusChangedEvent notification, CancellationToken ct)

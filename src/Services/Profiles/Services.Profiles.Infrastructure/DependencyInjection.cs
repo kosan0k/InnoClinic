@@ -33,10 +33,13 @@ public static class DependencyInjection
 
         services
             .AddSingleton<OutboxInsertInterceptor>()
+            .AddSingleton<SoftDeleteInterceptor>()
             .AddDbContext<WriteDbContext>((provider, options) =>
                 options
                     .UseNpgsql(writeConnectionString)
-                    .AddInterceptors(provider.GetRequiredService<OutboxInsertInterceptor>()));
+                    .AddInterceptors(
+                        provider.GetRequiredService<SoftDeleteInterceptor>(),
+                        provider.GetRequiredService<OutboxInsertInterceptor>()));
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<WriteDbContext>());
 
@@ -82,4 +85,3 @@ public static class DependencyInjection
         return services;
     }
 }
-

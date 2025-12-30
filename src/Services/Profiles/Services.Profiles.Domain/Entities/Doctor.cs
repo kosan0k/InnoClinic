@@ -2,7 +2,7 @@
 
 namespace Services.Profiles.Domain.Entities;
 
-public record Doctor
+public record Doctor : ISoftDeletable
 {
     public Guid Id { get; init; }
 
@@ -26,6 +26,11 @@ public record Doctor
     /// Indicates whether the doctor has been soft deleted.
     /// </summary>
     public bool IsDeleted { get; init; }
+
+    /// <summary>
+    /// The date and time when the doctor was soft deleted.
+    /// </summary>
+    public DateTime? DeletedAt { get; init; }
 
     /// <summary>
     /// Foreign key to the Specialization entity.
@@ -90,10 +95,5 @@ public record Doctor
             SpecializationId = specializationId,
             Status = status
         };
-    }
-
-    public Doctor MarkAsDeleted()
-    {
-        return this with { IsDeleted = true };
     }
 }

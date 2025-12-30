@@ -3,7 +3,7 @@ using Services.Profiles.Domain.Enums;
 
 namespace Services.Profiles.Application.Features.Doctors.Events;
 
-public sealed record DoctorStatusChangedEvent : IntegrationEventBase
+public sealed record DoctorStatusChangedEvent : SyncEventBase
 {
     public override string EventType => nameof(DoctorStatusChangedEvent);
     

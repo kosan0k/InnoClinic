@@ -20,6 +20,7 @@ public sealed class OutboxProcessor : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IOutboxNotifier _notifier;
     private readonly ILogger<OutboxProcessor> _logger;
+    private readonly TimeProvider _timeProvider;
     private static readonly ConcurrentDictionary<string, Type> _typeCache = new();
 
     private readonly TimeSpan _pollingInterval = TimeSpan.FromSeconds(5);
@@ -31,11 +32,13 @@ public sealed class OutboxProcessor : BackgroundService
     public OutboxProcessor(
         IServiceScopeFactory scopeFactory,
         IOutboxNotifier notifier,
-        ILogger<OutboxProcessor> logger)
+        ILogger<OutboxProcessor> logger,
+        TimeProvider timeProvider)
     {
         _scopeFactory = scopeFactory;
         _notifier = notifier;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     /// <summary>
@@ -248,8 +251,8 @@ public sealed class OutboxProcessor : BackgroundService
         }
     }
 
-    private static OutboxMessage MarkAsSuccess(OutboxMessage message) =>
-        message with { ProcessedOn = DateTime.UtcNow, Error = null };
+    private OutboxMessage MarkAsSuccess(OutboxMessage message) =>
+        message with { ProcessedOn = _timeProvider.GetUtcNow().UtcDateTime, Error = null };
 
     private OutboxMessage MarkAsFailure(OutboxMessage message, Exception ex)
     {
@@ -265,7 +268,7 @@ public sealed class OutboxProcessor : BackgroundService
         {
             RetryCount = nextRetryCount,
             Error = ex.Message,
-            ProcessedOn = isPoisonPill ? DateTime.UtcNow : null
+            ProcessedOn = isPoisonPill ? _timeProvider.GetUtcNow().UtcDateTime : null
         };
     }
 }

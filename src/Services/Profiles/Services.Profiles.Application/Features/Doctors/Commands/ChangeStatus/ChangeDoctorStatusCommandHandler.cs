@@ -13,15 +13,18 @@ public sealed class ChangeDoctorStatusCommandHandler : IRequestHandler<ChangeDoc
     private readonly IDoctorWriteRepository _doctorRepository;
     private readonly IOutboxService _outboxService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly TimeProvider _timeProvider;
 
     public ChangeDoctorStatusCommandHandler(
         IDoctorWriteRepository doctorRepository,
         IOutboxService outboxService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        TimeProvider timeProvider)
     {
         _doctorRepository = doctorRepository;
         _outboxService = outboxService;
         _unitOfWork = unitOfWork;
+        _timeProvider = timeProvider;
     }
 
     public async Task<UnitResult<Exception>> Handle(ChangeDoctorStatusCommand request, CancellationToken cancellationToken)
@@ -46,6 +49,7 @@ public sealed class ChangeDoctorStatusCommandHandler : IRequestHandler<ChangeDoc
 
                 var domainEvent = new DoctorStatusChangedEvent
                 {
+                    OccurredOn = _timeProvider.GetUtcNow().UtcDateTime,
                     DoctorId = updatedDoctor.Id,
                     OldStatus = oldStatus,
                     NewStatus = request.NewStatus
@@ -69,4 +73,3 @@ public sealed class ChangeDoctorStatusCommandHandler : IRequestHandler<ChangeDoc
         }
     }
 }
-

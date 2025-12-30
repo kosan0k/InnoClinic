@@ -33,9 +33,13 @@ public sealed class DoctorWriteRepository : IDoctorWriteRepository
         _context.Doctors.Update(doctor);
     }
 
+    public void Remove(Doctor doctor)
+    {
+        _context.Doctors.Remove(doctor);
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         await _context.SaveChangesAsync(cancellationToken);
     }
 }
-

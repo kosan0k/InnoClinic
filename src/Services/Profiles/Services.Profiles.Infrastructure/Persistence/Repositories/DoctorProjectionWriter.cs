@@ -19,89 +19,50 @@ public class DoctorProjectionWriter : IDoctorProjectionWriter
         return await _context.Doctors.AnyAsync(d => d.Id == id, ct);
     }
 
-    public async Task CreateAsync(
-        Guid id,
-        string firstName,
-        string lastName,
-        string? middleName,
-        DateTime dateOfBirth,
-        string email,
-        string? photoUrl,
-        int careerStartYear,
-        DoctorStatus status,
-        Guid specializationId,
-        string specializationName,
-        List<string> services,
-        CancellationToken cancellationToken)
+    public async Task CreateAsync(DoctorProjectionData data, CancellationToken cancellationToken)
     {
         var readModel = new DoctorReadModel
         {
-            Id = id,
-            FirstName = firstName,
-            LastName = lastName,
-            MiddleName = middleName,
-            DateOfBirth = dateOfBirth,
-            Email = email,
-            PhotoUrl = photoUrl,
-            CareerStartYear = careerStartYear,
-            Status = status,
-            SpecializationId = specializationId,
-            SpecializationName = specializationName,
-            Services = services
+            Id = data.Id,
+            FirstName = data.FirstName,
+            LastName = data.LastName,
+            MiddleName = data.MiddleName,
+            DateOfBirth = data.DateOfBirth,
+            Email = data.Email,
+            PhotoUrl = data.PhotoUrl,
+            CareerStartYear = data.CareerStartYear,
+            Status = data.Status,
+            SpecializationId = data.SpecializationId,
+            SpecializationName = data.SpecializationName,
+            Services = data.Services
         };
 
         await _context.Doctors.AddAsync(readModel, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpdateAsync(
-        Guid id,
-        string firstName,
-        string lastName,
-        string? middleName,
-        DateTime dateOfBirth,
-        string email,
-        string? photoUrl,
-        int careerStartYear,
-        DoctorStatus status,
-        Guid specializationId,
-        string specializationName,
-        List<string> services,
-        CancellationToken cancellationToken)
+    public async Task UpdateAsync(DoctorProjectionData data, CancellationToken cancellationToken)
     {
-        var existing = await _context.Doctors.FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
+        var existing = await _context.Doctors.FirstOrDefaultAsync(d => d.Id == data.Id, cancellationToken);
 
         if (existing is null)
         {
             // Fallback to Create if entity doesn't exist
-            await CreateAsync(
-                id,
-                firstName,
-                lastName,
-                middleName,
-                dateOfBirth,
-                email,
-                photoUrl,
-                careerStartYear,
-                status,
-                specializationId,
-                specializationName,
-                services,
-                cancellationToken);
+            await CreateAsync(data, cancellationToken);
             return;
         }
 
-        existing.FirstName = firstName;
-        existing.LastName = lastName;
-        existing.MiddleName = middleName;
-        existing.DateOfBirth = dateOfBirth;
-        existing.Email = email;
-        existing.PhotoUrl = photoUrl;
-        existing.CareerStartYear = careerStartYear;
-        existing.Status = status;
-        existing.SpecializationId = specializationId;
-        existing.SpecializationName = specializationName;
-        existing.Services = services;
+        existing.FirstName = data.FirstName;
+        existing.LastName = data.LastName;
+        existing.MiddleName = data.MiddleName;
+        existing.DateOfBirth = data.DateOfBirth;
+        existing.Email = data.Email;
+        existing.PhotoUrl = data.PhotoUrl;
+        existing.CareerStartYear = data.CareerStartYear;
+        existing.Status = data.Status;
+        existing.SpecializationId = data.SpecializationId;
+        existing.SpecializationName = data.SpecializationName;
+        existing.Services = data.Services;
 
         await _context.SaveChangesAsync(cancellationToken);
     }

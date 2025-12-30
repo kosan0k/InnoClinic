@@ -44,6 +44,9 @@ public sealed class DoctorWriteConfiguration : IEntityTypeConfiguration<Doctor>
             .IsRequired()
             .HasDefaultValue(false);
 
+        builder.Property(d => d.DeletedAt)
+            .IsRequired(false);
+
         builder.Property(d => d.SpecializationId)
             .IsRequired();
 
