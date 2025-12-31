@@ -10,9 +10,10 @@ var redis = builder.AddRedis("redis")
 // Define the PostgreSQL Server and a specific database for Keycloak
 var postgresImportPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "PostgresConfiguration");
 var postgres = builder.AddPostgres("postgres")
-    .WithDataVolume() // Persist data between restarts
-    .WithPgAdmin()   // Optional: Adds a UI to manage the DB
-    .WithBindMount(postgresImportPath, "/docker-entrypoint-initdb.d"); // Mount the init script folder into the container
+    .WithDataVolume("innoclinic-postgres-data") // Persist data between restarts
+    .WithPgAdmin(pgAdmin => pgAdmin.WithLifetime(ContainerLifetime.Persistent))   // Optional: Adds a UI to manage the DB
+    .WithBindMount(postgresImportPath, "/docker-entrypoint-initdb.d") // Mount the init script folder into the container
+    .WithLifetime(ContainerLifetime.Persistent); 
 
 // Keycloak for authentication and authorization
 var keycloakDb = postgres.AddDatabase("keycloak-db");
@@ -32,12 +33,16 @@ var keycloak = builder.AddKeycloakContainer("keycloak", port: 8180)
         name: "KC_DB_URL", 
         value: keycloakDbReference);
 
+// Profiles Service databases (separate read/write for CQRS)
+var profilesWriteDb = postgres.AddDatabase("profiles-write-db");
+var profilesReadDb = postgres.AddDatabase("profiles-read-db");
+
 #endregion
 
 #region Application Services
 var keycloakRealm = "AppRealm";
 
-var identityApi = builder.AddProject<Projects.Services_Identity_Api>("identity-api")
+var identityApi = builder.AddProject<Projects.Services_Identity_Api>("services-identity-api")
     .WithReference(redis)
     .WaitFor(redis)
     .WithReference(keycloak)
@@ -48,8 +53,12 @@ var identityApi = builder.AddProject<Projects.Services_Identity_Api>("identity-a
     .WithEnvironment("Keycloak__realm", keycloakRealm)
     .WithExternalHttpEndpoints();
 
-#endregion
+var profilesApi = builder.AddProject<Projects.Services_Profiles_Api>("services-profiles-api")
+    .WithReference(profilesWriteDb)
+    .WithReference(profilesReadDb)
+    .WaitFor(profilesWriteDb)
+    .WaitFor(profilesReadDb);
 
-builder.AddProject<Projects.Services_Profiles_Api>("services-profiles-api");
+#endregion
 
 builder.Build().Run();

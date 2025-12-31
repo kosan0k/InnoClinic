@@ -7,11 +7,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CSharpFunctionalExtensions" Version="3.6.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\InnoClinic.ServiceDefaults\InnoClinic.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\Services.Profiles.Application\Services.Profiles.Application.csproj" />
+    <ProjectReference Include="..\Services.Profiles.Infrastructure\Services.Profiles.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

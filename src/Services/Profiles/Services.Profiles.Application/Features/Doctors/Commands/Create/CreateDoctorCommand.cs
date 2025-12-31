@@ -1,14 +1,16 @@
-﻿using MediatR;
+﻿using CSharpFunctionalExtensions;
+using MediatR;
 
 namespace Services.Profiles.Application.Features.Doctors.Commands.Create;
 
-public class CreateDoctorCommand : IRequest<Guid>
+public sealed record CreateDoctorCommand : IRequest<Result<Guid, Exception>>
 {
-    public string FirstName { get; init; } = string.Empty;
-    public string LastName { get; init; } = string.Empty;
+    public required string FirstName { get; init; }
+    public required string LastName { get; init; }
     public string? MiddleName { get; init; }
-    public DateTime DateOfBirth { get; init; }
-    public string Email { get; init; } = string.Empty;
+    public required DateTime DateOfBirth { get; init; }
+    public required string Email { get; init; }
     public string? PhotoUrl { get; init; }
-    public int CareerStartYear { get; init; }
+    public required int CareerStartYear { get; init; }
+    public required Guid SpecializationId { get; init; }
 }

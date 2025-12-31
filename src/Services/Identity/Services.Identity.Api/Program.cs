@@ -69,14 +69,13 @@ public class Program
 
         var app = builder.Build();
 
-        #region Middleware Pipeline
-
-        // Map OpenAPI and Scalar UI (development only by default)
-        app.MapDefaultOpenApi(developmentOnly: true);
+        #region Middleware Pipeline        
 
         if (!app.Environment.IsDevelopment())
         {
             app.UseHttpsRedirection();
+            // Map OpenAPI and Scalar UI (development only by default)
+            app.MapDefaultOpenApi(developmentOnly: true);
         }
 
         app.UseAuthentication();
