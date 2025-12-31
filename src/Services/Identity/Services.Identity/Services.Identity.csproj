@@ -15,9 +15,10 @@
 		<PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.15.0" />
 		<PackageReference Include="Keycloak.AuthServices.Authentication" Version="2.7.0" />
 
-		<!-- Redis for Session Management -->
+		<!-- Redis for Session Management & Data Protection -->
 		<PackageReference Include="StackExchange.Redis" Version="2.10.1" />
 		<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
+		<PackageReference Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" Version="10.0.0" />
 
 		<!-- Entity Framework Core -->
 		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
