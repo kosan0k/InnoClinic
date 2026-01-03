@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
+﻿using System.Security.Claims;
+using System.Text.Json;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
@@ -73,15 +75,64 @@ public static class IServiceCollectionExtensions
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");
                 options.Scope.Add("email");
+                options.Scope.Add("roles");
 
                 options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 options.CallbackPath = "/api/auth/oidc-callback";
                 options.SignedOutCallbackPath = "/api/auth/signout-callback";
 
                 options.TokenValidationParameters.NameClaimType = "preferred_username";
-                options.TokenValidationParameters.RoleClaimType = "roles";
+                options.TokenValidationParameters.RoleClaimType = ClaimTypes.Role;
+
+                // Map Keycloak realm_access roles to standard ClaimTypes.Role claims
+                options.Events = new OpenIdConnectEvents
+                {
+                    OnTokenValidated = context =>
+                    {
+                        MapKeycloakRolesToClaims(context.Principal);
+                        return Task.CompletedTask;
+                    }
+                };
             });
 
         return services;
+    }
+
+    /// <summary>
+    /// Maps Keycloak realm_access roles to standard .NET ClaimTypes.Role claims.
+    /// This ensures role-based authorization works correctly with Keycloak tokens.
+    /// </summary>
+    private static void MapKeycloakRolesToClaims(ClaimsPrincipal? principal)
+    {
+        if (principal?.Identity is not ClaimsIdentity claimsIdentity)
+            return;
+
+        // Check if role claims already exist (avoid duplicates)
+        if (claimsIdentity.HasClaim(c => c.Type == ClaimTypes.Role))
+            return;
+
+        var realmAccessClaim = claimsIdentity.FindFirst("realm_access");
+        if (realmAccessClaim == null)
+            return;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(realmAccessClaim.Value);
+            if (doc.RootElement.TryGetProperty("roles", out var rolesElement))
+            {
+                foreach (var role in rolesElement.EnumerateArray())
+                {
+                    var roleName = role.GetString();
+                    if (!string.IsNullOrEmpty(roleName))
+                    {
+                        claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, roleName));
+                    }
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Invalid JSON in realm_access claim - skip role mapping
+        }
     }
 }

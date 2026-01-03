@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -71,9 +72,10 @@ public class Program
             .UseSessionRevocation()
             .AddAuthorization(options =>
             {
-                // Define a policy named "AdminsOnly"
+                // Use RequireClaim with explicit ClaimTypes.Role to ensure consistent behavior
+                // across both JWT Bearer and Cookie authentication schemes
                 options.AddPolicy("AdminsOnly", policy =>
-                    policy.RequireRole("admin"));
+                    policy.RequireClaim(ClaimTypes.Role, "admin"));
             });
 
         // Add OpenAPI with Scalar UI

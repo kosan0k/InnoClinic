@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Services.Profiles.Application;
 using Services.Profiles.Infrastructure;
 using Services.Profiles.Infrastructure.Persistence;
@@ -44,8 +45,10 @@ public class Program
 
         builder.Services.AddAuthorization(options =>
         {
+            // Use RequireClaim with explicit ClaimTypes.Role to ensure consistent behavior
+            // across both JWT Bearer and Cookie authentication schemes
             options.AddPolicy("AdminsOnly", policy =>
-                policy.RequireRole("admin"));
+                policy.RequireClaim(ClaimTypes.Role, "admin"));
         });
 
         #endregion
