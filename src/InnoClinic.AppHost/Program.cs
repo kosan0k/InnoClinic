@@ -57,7 +57,15 @@ var profilesApi = builder.AddProject<Projects.Services_Profiles_Api>("services-p
     .WithReference(profilesWriteDb)
     .WithReference(profilesReadDb)
     .WaitFor(profilesWriteDb)
-    .WaitFor(profilesReadDb);
+    .WaitFor(profilesReadDb)
+    .WithReference(redis)
+    .WaitFor(redis)
+    .WithReference(keycloak)
+    .WaitFor(keycloak)
+    .WaitFor(identityApi)
+    .WithEnvironment("AuthOptions__KeycloakBaseUrl", keycloak.GetEndpoint("http"))
+    .WithEnvironment("AuthOptions__Realm", keycloakRealm)
+    .WithEnvironment("AuthOptions__IdentityLoginUrl", ReferenceExpression.Create($"{identityApi.GetEndpoint("http")}/auth/login"));
 
 #endregion
 
