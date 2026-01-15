@@ -1,5 +1,5 @@
-using CSharpFunctionalExtensions;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.Profiles.Api.Contracts;
 using Services.Profiles.Application.Common.Exceptions;
@@ -14,6 +14,7 @@ namespace Services.Profiles.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = "AdminsOnly")]
 public sealed class DoctorsController : ControllerBase
 {
     private readonly ISender _sender;
@@ -33,10 +34,10 @@ public sealed class DoctorsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var query = new GetDoctorsListQuery();
-        var result = await _sender.Send(query, cancellationToken);        
+        var result = await _sender.Send(query, cancellationToken);
 
         return result.IsSuccess
-            ? Ok(result.Value) 
+            ? Ok(result.Value)
             : HandleError(result.Error);
     }
 
