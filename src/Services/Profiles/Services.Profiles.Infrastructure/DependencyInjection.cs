@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RabbitMQ.Client;
 using Services.Profiles.Application.Common.Interfaces;
 using Services.Profiles.Application.Common.Persistence;
 using Services.Profiles.Infrastructure.Persistence;
@@ -20,6 +21,7 @@ public static class DependencyInjection
         services.AddReadDatabase(configuration);
         services.AddRepositories();
         services.AddOutboxServices();
+        services.AddMessaging(configuration);
 
         return services;
     }
@@ -81,6 +83,29 @@ public static class DependencyInjection
         
         services.AddScoped<IOutboxService, OutboxService>();
         services.AddHostedService<OutboxProcessor>();        
+
+        return services;
+    }
+
+    private static IServiceCollection AddMessaging(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString("rabbitmq")
+            ?? throw new InvalidOperationException("rabbitmq connection string is not configured");
+
+        services.AddSingleton<IConnection>(_ =>
+        {
+            var factory = new ConnectionFactory
+            {
+                Uri = new Uri(connectionString),
+                AutomaticRecoveryEnabled = true
+            };
+
+            return factory.CreateConnection();
+        });
+
+        services.AddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
 
         return services;
     }

@@ -9,6 +9,7 @@ using Services.Identity.Features.Auth.Registration;
 using Services.Identity.Features.Session.Middleware;
 using Services.Identity.Features.Session.Registration;
 using Services.Identity.Features.Users;
+using Services.Identity.Features.Users.Integration;
 using Services.Identity.Features.Users.Registration;
 using Services.Identity.Shared.Configurations;
 using Services.Identity.Shared.Costants;
@@ -70,6 +71,7 @@ public class Program
                 isDevelopment: builder.Environment.IsDevelopment())
             .UseKeycloakIdentityService()
             .UseSessionRevocation()
+            .AddHostedService<DoctorCreatedUserConsumer>()
             .AddAuthorization(options =>
             {
                 // Use RequireClaim with explicit ClaimTypes.Role to ensure consistent behavior

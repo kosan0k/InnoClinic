@@ -33,6 +33,12 @@ var keycloak = builder.AddKeycloakContainer("keycloak", port: 8180)
         name: "KC_DB_URL", 
         value: keycloakDbReference);
 
+// RabbitMQ for inter-service messaging
+var rabbitmq = builder.AddRabbitMQ("rabbitmq")
+    .WithManagementPlugin()
+    .WithDataVolume("innoclinic-rabbitmq-data")
+    .WithLifetime(ContainerLifetime.Persistent);
+
 // Profiles Service databases (separate read/write for CQRS)
 var profilesWriteDb = postgres.AddDatabase("profiles-write-db");
 var profilesReadDb = postgres.AddDatabase("profiles-read-db");
@@ -47,6 +53,8 @@ var identityApi = builder.AddProject<Projects.Services_Identity_Api>("services-i
     .WaitFor(redis)
     .WithReference(keycloak)
     .WaitFor(keycloak)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
     .WithEnvironment("AuthOptions__KeycloakBaseUrl", keycloak.GetEndpoint("http"))
     .WithEnvironment("AuthOptions__Authority", ReferenceExpression.Create($"{keycloak.GetEndpoint("http")}/realms/{keycloakRealm}"))
     .WithEnvironment("Keycloak__auth-server-url", keycloak.GetEndpoint("http"))
@@ -63,6 +71,8 @@ var profilesApi = builder.AddProject<Projects.Services_Profiles_Api>("services-p
     .WithReference(keycloak)
     .WaitFor(keycloak)
     .WaitFor(identityApi)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
     .WithEnvironment("AuthOptions__KeycloakBaseUrl", keycloak.GetEndpoint("http"))
     .WithEnvironment("AuthOptions__Realm", keycloakRealm)
     .WithEnvironment("AuthOptions__IdentityLoginUrl", ReferenceExpression.Create($"{identityApi.GetEndpoint("http")}/auth/login"));
